@@ -17,7 +17,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- CSS Local -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- Cache busting: atualizar ?v=X.X.X a cada deploy para forçar o navegador a recarregar o arquivo -->
+    <link rel="stylesheet" href="css/style.css?v=1.0.1">
 
     <!-- SDK da Iugu (tokenização de cartão no frontend) -->
     <!-- IMPORTANTE: Substitua "SEU_ACCOUNT_ID_IUGU" pelo Account ID real da sua conta Iugu -->
@@ -300,6 +301,7 @@
     </main>
 
     <!-- JavaScript -->
-    <script src="js/checkout.js"></script>
+    <!-- Cache busting: atualizar ?v=X.X.X a cada deploy para forçar o navegador a recarregar o arquivo -->
+    <script src="js/checkout.js?v=1.0.1"></script>
 </body>
 </html>
