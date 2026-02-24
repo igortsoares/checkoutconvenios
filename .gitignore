@@ -1,5 +1,3 @@
-# Arquivo de variáveis de ambiente - NUNCA commitar
-.env
 
 # Dependências do Composer
 vendor/
