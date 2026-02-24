@@ -215,3 +215,139 @@ function generateUuid(): string {
 function nowIso(): string {
     return gmdate('Y-m-d\TH:i:s\Z');
 }
+
+// ============================================================
+// FUNÇÕES DE VALIDAÇÃO DE DADOS
+// Implementam as regras de negócio para os campos do formulário.
+// Usadas como segunda camada de segurança no backend,
+// complementando as validações do frontend (JS).
+// ============================================================
+
+/**
+ * Valida o CPF usando o algoritmo oficial dos dois dígitos verificadores.
+ *
+ * Regras:
+ *  - Deve ter exatamente 11 dígitos
+ *  - Não pode ser uma sequência repetida (ex: 111.111.111-11)
+ *  - Os dois dígitos verificadores devem ser matematicamente corretos
+ *
+ * @param string $cpf CPF apenas com dígitos (sem máscara)
+ * @return bool
+ */
+function validarCPF(string $cpf): bool {
+    // Deve ter exatamente 11 dígitos
+    if (strlen($cpf) !== 11) return false;
+
+    // Rejeita sequências repetidas (00000000000, 11111111111, etc.)
+    if (preg_match('/^(\d)\1{10}$/', $cpf)) return false;
+
+    // --- Cálculo do 1º dígito verificador ---
+    $soma = 0;
+    for ($i = 0; $i < 9; $i++) {
+        $soma += (int)$cpf[$i] * (10 - $i);
+    }
+    $resto = ($soma * 10) % 11;
+    if ($resto === 10 || $resto === 11) $resto = 0;
+    if ($resto !== (int)$cpf[9]) return false;
+
+    // --- Cálculo do 2º dígito verificador ---
+    $soma = 0;
+    for ($i = 0; $i < 10; $i++) {
+        $soma += (int)$cpf[$i] * (11 - $i);
+    }
+    $resto = ($soma * 10) % 11;
+    if ($resto === 10 || $resto === 11) $resto = 0;
+    if ($resto !== (int)$cpf[10]) return false;
+
+    return true;
+}
+
+/**
+ * Valida o e-mail.
+ *
+ * Regras:
+ *  - Deve conter o caractere @
+ *  - Deve ter um domínio válido após o @ (ex: gmail.com)
+ *  - Formato: usuario@dominio.extensao
+ *
+ * @param string $email
+ * @return bool
+ */
+function validarEmail(string $email): bool {
+    return filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false;
+}
+
+/**
+ * Valida o telefone celular brasileiro.
+ *
+ * Regras:
+ *  - Deve ter exatamente 11 dígitos (DDD + 9 + 8 dígitos)
+ *  - DDD deve ser um número entre 11 e 99
+ *  - O 3º dígito (após o DDD) deve ser 9 (celular)
+ *
+ * @param string $phone Telefone apenas com dígitos
+ * @return array ['valid' => bool, 'message' => string]
+ */
+function validarTelefone(string $phone): array {
+    $digits = preg_replace('/\D+/', '', $phone);
+
+    if (strlen($digits) < 11) {
+        return ['valid' => false, 'message' => 'Telefone inválido. Informe DDD + 9 dígitos (ex: 61 9 9618-7769).'];
+    }
+    if (strlen($digits) > 11) {
+        return ['valid' => false, 'message' => 'Telefone inválido. Número muito longo.'];
+    }
+
+    $ddd  = (int)substr($digits, 0, 2);
+    $nono = $digits[2]; // O 3º dígito deve ser 9 para celular
+
+    if ($ddd < 11 || $ddd > 99) {
+        return ['valid' => false, 'message' => 'DDD inválido. Informe um DDD entre 11 e 99.'];
+    }
+    if ($nono !== '9') {
+        return ['valid' => false, 'message' => 'Número de celular inválido. O número deve começar com 9 após o DDD.'];
+    }
+
+    return ['valid' => true, 'message' => ''];
+}
+
+/**
+ * Valida a data de nascimento.
+ *
+ * Regras:
+ *  - Deve ser uma data válida
+ *  - Não pode ser uma data futura
+ *  - O usuário deve ter no mínimo 15 anos na data atual do cadastro
+ *
+ * @param string $birthDate Data no formato YYYY-MM-DD
+ * @return array ['valid' => bool, 'message' => string]
+ */
+function validarDataNascimento(string $birthDate): array {
+    if (empty($birthDate)) {
+        return ['valid' => false, 'message' => 'Data de nascimento é obrigatória.'];
+    }
+
+    // Verifica se é uma data válida no formato YYYY-MM-DD
+    $parts = explode('-', $birthDate);
+    if (count($parts) !== 3 || !checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+        return ['valid' => false, 'message' => 'Data de nascimento inválida.'];
+    }
+
+    $nascimento = new DateTime($birthDate);
+    $hoje       = new DateTime();
+
+    // Não pode ser uma data futura
+    if ($nascimento > $hoje) {
+        return ['valid' => false, 'message' => 'A data de nascimento não pode ser uma data futura.'];
+    }
+
+    // Calcula a idade exata
+    $idade = $hoje->diff($nascimento)->y;
+
+    // Mínimo de 15 anos
+    if ($idade < 15) {
+        return ['valid' => false, 'message' => 'Você deve ter pelo menos 15 anos para se cadastrar.'];
+    }
+
+    return ['valid' => true, 'message' => ''];
+}

@@ -2,9 +2,14 @@
  * ============================================================
  * CHECKOUT CONVÊNIOS - TKS VANTAGENS
  * Arquivo: js/checkout.js
+ * Versão: 1.0.2
+ *
  * Descrição: Lógica completa do formulário de checkout.
- *            Gerencia a navegação entre etapas, as chamadas
- *            de API e a tokenização do cartão via SDK da Iugu.
+ *   - Navegação entre etapas
+ *   - Validações de CPF, telefone, e-mail e data de nascimento
+ *   - Chamadas de API para verificação de CPF e listagem de planos
+ *   - Tokenização do cartão via SDK da Iugu
+ *   - Processamento da assinatura
  * ============================================================
  */
 
@@ -14,24 +19,24 @@
 // ============================================================
 const state = {
     // Etapa 1: CPF
-    cpf:         '',
-    profileId:   null,   // UUID do perfil no banco (se já existir)
-    companyId:   null,   // UUID da empresa parceira (se for convênio)
-    companyName: null,
-    planType:    'b2c',  // "convenio" ou "b2c"
-    isNewUser:   true,
+    cpf:          '',
+    profileId:    null,   // UUID do perfil no banco (se já existir)
+    companyId:    null,   // UUID da empresa parceira (se for convênio)
+    companyName:  null,
+    planType:     'b2c',  // "convenio" ou "b2c"
+    isNewUser:    true,
 
     // Etapa 2: Plano
-    selectedPlan: null,  // Objeto com id, name, price_formatted, iugu_plan_identifier
+    selectedPlan: null,   // Objeto com id, name, price_formatted, iugu_plan_identifier
 
     // Etapa 3: Dados Pessoais
-    fullName:   '',
-    email:      '',
-    phone:      '',
-    birthDate:  '',
+    fullName:     '',
+    email:        '',
+    phone:        '',
+    birthDate:    '',
 
     // Etapa 4: Pagamento
-    paymentMethod: null, // "credit_card" | "bank_slip" | "pix"
+    paymentMethod: null,  // "credit_card" | "bank_slip" | "pix"
 };
 
 // Etapa atual (1 a 4)
@@ -74,6 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('input-cpf').addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleVerificarCpf();
     });
+
+    // Limpa o erro inline ao editar os campos da Etapa 3
+    ['input-nome', 'input-email', 'input-telefone', 'input-nascimento'].forEach(id => {
+        document.getElementById(id)?.addEventListener('input', () => clearFieldError(id));
+    });
 });
 
 // ============================================================
@@ -85,10 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
  * Atualiza o indicador de progresso visual.
  */
 function goToStep(step) {
-    // Esconde o painel atual
     document.getElementById(`step-${currentStep}`)?.classList.add('hidden');
-
-    // Mostra o novo painel
     const newPanel = document.getElementById(`step-${step}`);
     if (newPanel) {
         newPanel.classList.remove('hidden');
@@ -103,31 +110,226 @@ function goToStep(step) {
  */
 function updateProgressIndicator(activeStep) {
     for (let i = 1; i <= 4; i++) {
-        const item = document.querySelector(`[data-step="${i}"]`);
+        const item   = document.querySelector(`[data-step="${i}"]`);
         if (!item) continue;
-
         const circle = item.querySelector('.step-circle');
         const label  = item.querySelector('span');
-        const line   = item.nextElementSibling; // A linha após o item
+        const line   = item.nextElementSibling;
 
         if (i < activeStep) {
-            // Etapa concluída
-            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 completed';
-            circle.innerHTML = '<i class="fas fa-check text-xs"></i>';
-            label.className  = 'text-xs mt-1 text-green-600 font-semibold';
+            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 completed';
+            circle.innerHTML   = '<i class="fas fa-check text-xs"></i>';
+            label.className    = 'text-xs mt-1 text-green-600 font-semibold';
             if (line && line.classList.contains('step-line')) line.classList.add('active');
         } else if (i === activeStep) {
-            // Etapa atual
-            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 active';
+            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 active';
             circle.textContent = i;
-            label.className  = 'text-xs mt-1 text-tks-primary font-semibold';
+            label.className    = 'text-xs mt-1 text-tks-primary font-semibold';
         } else {
-            // Etapa futura
-            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400';
+            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400';
             circle.textContent = i;
-            label.className  = 'text-xs mt-1 text-slate-400';
+            label.className    = 'text-xs mt-1 text-slate-400';
         }
     }
+}
+
+// ============================================================
+// VALIDAÇÕES
+// Todas as regras de negócio para os campos do formulário.
+// ============================================================
+
+/**
+ * Valida o CPF usando o algoritmo oficial dos dois dígitos verificadores.
+ *
+ * Regras:
+ *  - Deve ter exatamente 11 dígitos
+ *  - Não pode ser uma sequência repetida (ex: 111.111.111-11)
+ *  - Os dois últimos dígitos devem ser calculados corretamente
+ *
+ * @param {string} cpf - CPF apenas com dígitos (sem máscara)
+ * @returns {boolean}
+ */
+function validarCPF(cpf) {
+    // Remove qualquer caractere não numérico
+    cpf = cpf.replace(/\D/g, '');
+
+    // Deve ter exatamente 11 dígitos
+    if (cpf.length !== 11) return false;
+
+    // Rejeita sequências repetidas (ex: 00000000000, 11111111111, etc.)
+    if (/^(\d)\1{10}$/.test(cpf)) return false;
+
+    // --- Cálculo do 1º dígito verificador ---
+    let soma = 0;
+    for (let i = 0; i < 9; i++) {
+        soma += parseInt(cpf[i]) * (10 - i);
+    }
+    let resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(cpf[9])) return false;
+
+    // --- Cálculo do 2º dígito verificador ---
+    soma = 0;
+    for (let i = 0; i < 10; i++) {
+        soma += parseInt(cpf[i]) * (11 - i);
+    }
+    resto = (soma * 10) % 11;
+    if (resto === 10 || resto === 11) resto = 0;
+    if (resto !== parseInt(cpf[10])) return false;
+
+    return true;
+}
+
+/**
+ * Valida o e-mail.
+ *
+ * Regras:
+ *  - Deve conter o caractere @
+ *  - Deve ter um domínio após o @ (ex: gmail.com)
+ *  - Formato geral: usuario@dominio.extensao
+ *
+ * @param {string} email
+ * @returns {boolean}
+ */
+function validarEmail(email) {
+    // Expressão regular que valida o formato básico de e-mail
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    return regex.test(email.trim());
+}
+
+/**
+ * Valida o telefone celular brasileiro.
+ *
+ * Regras:
+ *  - Deve ter exatamente 11 dígitos (DDD + 9 + 8 dígitos)
+ *  - O DDD deve ser um número válido (11 a 99)
+ *  - O número deve começar com 9 (celular)
+ *
+ * @param {string} phone - Telefone apenas com dígitos
+ * @returns {{ valid: boolean, message: string }}
+ */
+function validarTelefone(phone) {
+    const digits = phone.replace(/\D/g, '');
+
+    if (digits.length < 11) {
+        return { valid: false, message: 'Telefone inválido. Informe DDD + 9 dígitos (ex: 61 9 9618-7769).' };
+    }
+    if (digits.length > 11) {
+        return { valid: false, message: 'Telefone inválido. Número muito longo.' };
+    }
+
+    const ddd    = parseInt(digits.substring(0, 2));
+    const nono   = digits[2]; // O 3º dígito deve ser 9 para celular
+
+    // DDD válido: entre 11 e 99
+    if (ddd < 11 || ddd > 99) {
+        return { valid: false, message: 'DDD inválido. Informe um DDD entre 11 e 99.' };
+    }
+
+    // Celular deve começar com 9
+    if (nono !== '9') {
+        return { valid: false, message: 'Número de celular inválido. O número deve começar com 9 após o DDD.' };
+    }
+
+    return { valid: true, message: '' };
+}
+
+/**
+ * Valida a data de nascimento.
+ *
+ * Regras:
+ *  - Deve ser uma data válida
+ *  - O usuário deve ter no mínimo 15 anos na data atual
+ *  - Não pode ser uma data futura
+ *
+ * @param {string} birthDate - Data no formato YYYY-MM-DD (padrão do input type="date")
+ * @returns {{ valid: boolean, message: string }}
+ */
+function validarDataNascimento(birthDate) {
+    if (!birthDate) {
+        return { valid: false, message: 'Por favor, informe sua data de nascimento.' };
+    }
+
+    const nascimento = new Date(birthDate);
+    const hoje       = new Date();
+
+    // Verifica se é uma data válida
+    if (isNaN(nascimento.getTime())) {
+        return { valid: false, message: 'Data de nascimento inválida.' };
+    }
+
+    // Não pode ser uma data futura
+    if (nascimento > hoje) {
+        return { valid: false, message: 'A data de nascimento não pode ser uma data futura.' };
+    }
+
+    // Calcula a idade exata (considerando mês e dia)
+    let idade = hoje.getFullYear() - nascimento.getFullYear();
+    const mesAtual  = hoje.getMonth();
+    const diaAtual  = hoje.getDate();
+    const mesNasc   = nascimento.getMonth();
+    const diaNasc   = nascimento.getDate();
+
+    // Se ainda não fez aniversário este ano, subtrai 1
+    if (mesAtual < mesNasc || (mesAtual === mesNasc && diaAtual < diaNasc)) {
+        idade--;
+    }
+
+    // Mínimo de 15 anos
+    if (idade < 15) {
+        return { valid: false, message: 'Você deve ter pelo menos 15 anos para se cadastrar.' };
+    }
+
+    return { valid: true, message: '' };
+}
+
+// ============================================================
+// EXIBIÇÃO DE ERROS INLINE NOS CAMPOS
+// ============================================================
+
+/**
+ * Exibe uma mensagem de erro diretamente abaixo de um campo específico.
+ * Também destaca o campo com borda vermelha.
+ *
+ * @param {string} fieldId - ID do campo HTML
+ * @param {string} message - Mensagem de erro a exibir
+ */
+function showFieldError(fieldId, message) {
+    const field = document.getElementById(fieldId);
+    if (!field) return;
+
+    // Remove erro anterior deste campo
+    clearFieldError(fieldId);
+
+    // Destaca o campo com borda vermelha
+    field.classList.add('border-red-500', 'focus:ring-red-300');
+    field.classList.remove('border-slate-200');
+
+    // Cria o elemento de mensagem de erro abaixo do campo
+    const errorEl = document.createElement('p');
+    errorEl.id        = `error-${fieldId}`;
+    errorEl.className = 'text-red-500 text-xs mt-1 flex items-center gap-1';
+    errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+
+    // Insere após o campo (ou após o wrapper se houver)
+    const parent = field.parentElement;
+    parent.appendChild(errorEl);
+}
+
+/**
+ * Remove a mensagem de erro e o destaque de um campo.
+ *
+ * @param {string} fieldId - ID do campo HTML
+ */
+function clearFieldError(fieldId) {
+    const field    = document.getElementById(fieldId);
+    const errorEl  = document.getElementById(`error-${fieldId}`);
+
+    if (field) {
+        field.classList.remove('border-red-500', 'focus:ring-red-300');
+        field.classList.add('border-slate-200');
+    }
+    if (errorEl) errorEl.remove();
 }
 
 // ============================================================
@@ -136,12 +338,29 @@ function updateProgressIndicator(activeStep) {
 
 /**
  * Chamado quando o usuário clica em "Continuar" na Etapa 1.
- * Verifica o CPF na API e determina se é convênio ou B2C.
+ *
+ * Validações:
+ *  1. CPF deve ter 11 dígitos
+ *  2. CPF deve ser matematicamente válido (algoritmo oficial)
+ *
+ * Se válido, consulta a API para verificar o vínculo do usuário.
  */
 async function handleVerificarCpf() {
-    const cpfVal = document.getElementById('input-cpf').value;
-    if (cpfVal.replace(/\D/g, '').length < 11) {
-        showError('Por favor, informe um CPF válido com 11 dígitos.');
+    const cpfInput = document.getElementById('input-cpf');
+    const cpfVal   = cpfInput.value;
+    const cpfDigits = cpfVal.replace(/\D/g, '');
+
+    // --- Validação 1: Tamanho ---
+    if (cpfDigits.length !== 11) {
+        showError('CPF inválido. Por favor, informe todos os 11 dígitos.');
+        cpfInput.focus();
+        return;
+    }
+
+    // --- Validação 2: Algoritmo oficial do CPF ---
+    if (!validarCPF(cpfDigits)) {
+        showError('CPF inválido. O número informado não é um CPF válido. Verifique e tente novamente.');
+        cpfInput.focus();
         return;
     }
 
@@ -154,14 +373,14 @@ async function handleVerificarCpf() {
         if (data.error) throw new Error(data.error);
 
         // Salva os dados no estado global
-        state.cpf        = data.cpf || cpfVal.replace(/\D/g, '');
-        state.profileId  = data.profile_id || null;
-        state.companyId  = data.company_id || null;
+        state.cpf         = data.cpf || cpfDigits;
+        state.profileId   = data.profile_id || null;
+        state.companyId   = data.company_id || null;
         state.companyName = data.company_name || null;
-        state.planType   = data.plan_type || 'b2c';
-        state.isNewUser  = data.is_new_user || false;
+        state.planType    = data.plan_type || 'b2c';
+        state.isNewUser   = data.is_new_user || false;
 
-        // Pré-preenche dados pessoais se o usuário já existe
+        // Pré-preenche dados pessoais se o usuário já existe no banco
         if (data.found && !data.is_new_user) {
             if (data.full_name)  document.getElementById('input-nome').value       = data.full_name;
             if (data.email)      document.getElementById('input-email').value      = data.email;
@@ -177,7 +396,7 @@ async function handleVerificarCpf() {
             badge.classList.add('flex');
         }
 
-        // Avança para a etapa de seleção de planos e carrega os planos
+        // Avança para a etapa de seleção de planos
         goToStep(2);
         await carregarPlanos();
 
@@ -195,16 +414,16 @@ async function handleVerificarCpf() {
 
 /**
  * Busca os planos disponíveis na API conforme o tipo de usuário.
+ * Convênio → planos específicos da empresa
+ * B2C      → planos padrão
  */
 async function carregarPlanos() {
     const container = document.getElementById('planos-container');
     const loader    = document.getElementById('planos-loader');
     const subtitle  = document.getElementById('planos-subtitle');
 
-    // Mostra o loader
     loader.classList.remove('hidden');
 
-    // Monta a URL com os parâmetros corretos
     let url = `/api/listar_planos.php?plan_type=${state.planType}`;
     if (state.companyId) url += `&company_id=${encodeURIComponent(state.companyId)}`;
 
@@ -212,7 +431,6 @@ async function carregarPlanos() {
         const res  = await fetch(url);
         const data = await res.json();
 
-        // Esconde o loader
         loader.classList.add('hidden');
 
         if (!data.plans || data.plans.length === 0) {
@@ -220,26 +438,20 @@ async function carregarPlanos() {
             return;
         }
 
-        // Atualiza o subtítulo conforme o tipo
         if (data.plan_type === 'convenio') {
             subtitle.textContent = `Planos exclusivos do seu convênio com ${state.companyName || 'a empresa parceira'}.`;
         } else {
             subtitle.textContent = 'Planos disponíveis para você.';
         }
 
-        // Renderiza os cards de plano
         container.innerHTML = '';
         data.plans.forEach(plan => {
             const card = document.createElement('div');
             card.className = 'plan-card';
-            card.dataset.planId              = plan.id;
-            card.dataset.planName            = plan.name;
-            card.dataset.planPrice           = plan.price_formatted;
-            card.dataset.planPriceCents      = plan.price_cents;
-            card.dataset.planIdentifier      = plan.iugu_plan_identifier;
-            card.dataset.planBillingPeriod   = plan.billing_period;
-
-            const periodLabel = plan.billing_period === 'monthly' ? '/mês' : '/ano';
+            card.dataset.planId         = plan.id;
+            card.dataset.planName       = plan.name;
+            card.dataset.planPrice      = plan.price_formatted;
+            card.dataset.planIdentifier = plan.iugu_plan_identifier;
 
             card.innerHTML = `
                 <div class="plan-radio"></div>
@@ -249,7 +461,7 @@ async function carregarPlanos() {
                 </div>
                 <div class="text-right flex-shrink-0">
                     <p class="text-xl font-bold text-tks-primary">${plan.price_formatted}</p>
-                    <p class="text-xs text-slate-400">${periodLabel}</p>
+                    <p class="text-xs text-slate-400">/mês</p>
                 </div>
             `;
 
@@ -268,16 +480,9 @@ async function carregarPlanos() {
  * Seleciona um plano e habilita o botão de continuar.
  */
 function selectPlan(cardEl, plan) {
-    // Remove a seleção de todos os cards
     document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
-
-    // Seleciona o card clicado
     cardEl.classList.add('selected');
-
-    // Salva o plano no estado global
     state.selectedPlan = plan;
-
-    // Habilita o botão de continuar
     document.getElementById('btn-selecionar-plano').disabled = false;
 }
 
@@ -286,7 +491,16 @@ function selectPlan(cardEl, plan) {
 // ============================================================
 
 /**
- * Valida os dados pessoais e avança para a etapa de pagamento.
+ * Valida todos os dados pessoais antes de avançar para o pagamento.
+ *
+ * Validações:
+ *  - Nome: obrigatório
+ *  - E-mail: formato válido com @ e domínio
+ *  - Telefone: DDD (2 dígitos) + 9 + 8 dígitos = 11 dígitos no total
+ *  - Data de Nascimento: data válida, não futura, mínimo 15 anos
+ *
+ * Exibe erros inline abaixo de cada campo com problema.
+ * Só avança se TODOS os campos estiverem válidos.
  */
 function handleConfirmarDados() {
     const nome       = document.getElementById('input-nome').value.trim();
@@ -294,12 +508,50 @@ function handleConfirmarDados() {
     const telefone   = document.getElementById('input-telefone').value.trim();
     const nascimento = document.getElementById('input-nascimento').value.trim();
 
-    if (!nome)       { showError('Por favor, informe seu nome completo.'); return; }
-    if (!email || !email.includes('@')) { showError('Por favor, informe um e-mail válido.'); return; }
-    if (telefone.replace(/\D/g, '').length < 10) { showError('Por favor, informe um telefone válido com DDD.'); return; }
-    if (!nascimento) { showError('Por favor, informe sua data de nascimento.'); return; }
+    // Limpa todos os erros anteriores
+    ['input-nome', 'input-email', 'input-telefone', 'input-nascimento'].forEach(clearFieldError);
 
-    // Salva os dados no estado global
+    let hasError = false;
+
+    // --- Validação: Nome ---
+    if (!nome) {
+        showFieldError('input-nome', 'Por favor, informe seu nome completo.');
+        hasError = true;
+    } else if (nome.split(' ').filter(p => p.length > 0).length < 2) {
+        showFieldError('input-nome', 'Informe seu nome e sobrenome.');
+        hasError = true;
+    }
+
+    // --- Validação: E-mail ---
+    if (!email) {
+        showFieldError('input-email', 'Por favor, informe seu e-mail.');
+        hasError = true;
+    } else if (!validarEmail(email)) {
+        showFieldError('input-email', 'E-mail inválido. Informe um e-mail no formato usuario@dominio.com');
+        hasError = true;
+    }
+
+    // --- Validação: Telefone ---
+    const telResult = validarTelefone(telefone);
+    if (!telResult.valid) {
+        showFieldError('input-telefone', telResult.message);
+        hasError = true;
+    }
+
+    // --- Validação: Data de Nascimento ---
+    const nascResult = validarDataNascimento(nascimento);
+    if (!nascResult.valid) {
+        showFieldError('input-nascimento', nascResult.message);
+        hasError = true;
+    }
+
+    // Se houver qualquer erro, interrompe e não avança
+    if (hasError) {
+        showError('Por favor, corrija os campos destacados em vermelho antes de continuar.');
+        return;
+    }
+
+    // Todos os campos válidos — salva no estado e avança
     state.fullName  = nome;
     state.email     = email;
     state.phone     = telefone.replace(/\D/g, '');
@@ -322,15 +574,13 @@ function handleConfirmarDados() {
 function selectPaymentMethod(method) {
     state.paymentMethod = method;
 
-    // Atualiza visual dos botões
     document.querySelectorAll('.payment-method-btn').forEach(btn => {
         btn.classList.toggle('selected', btn.dataset.method === method);
     });
 
-    // Mostra/esconde o formulário de cartão
-    const formCartao = document.getElementById('form-cartao');
-    const avisoBoleto = document.getElementById('aviso-boleto-pix');
-    const avisoText   = document.getElementById('aviso-boleto-pix-text');
+    const formCartao   = document.getElementById('form-cartao');
+    const avisoBoleto  = document.getElementById('aviso-boleto-pix');
+    const avisoText    = document.getElementById('aviso-boleto-pix-text');
 
     if (method === 'credit_card') {
         formCartao.classList.remove('hidden');
@@ -343,7 +593,6 @@ function selectPaymentMethod(method) {
             : 'Após clicar em "Finalizar", um boleto bancário será gerado para você.';
     }
 
-    // Habilita o botão de finalizar
     document.getElementById('btn-finalizar').disabled = false;
 }
 
@@ -363,15 +612,14 @@ async function handleFinalizar() {
         let cardToken = null;
 
         // --- Tokenização do Cartão via SDK da Iugu ---
-        // O SDK da Iugu captura os dados do cartão no FRONTEND e
-        // retorna um token temporário. Nunca enviamos os dados do
-        // cartão diretamente para o nosso servidor — isso é uma
-        // prática de segurança obrigatória (PCI DSS).
+        // O SDK captura os dados do cartão no FRONTEND e retorna
+        // um token temporário. Os dados do cartão NUNCA chegam ao
+        // nosso servidor — isso é obrigatório pelo padrão PCI DSS.
         if (state.paymentMethod === 'credit_card') {
             cardToken = await tokenizarCartao();
             if (!cardToken) {
                 setButtonLoading('btn-finalizar', 'btn-finalizar-text', 'btn-finalizar-loader', 'btn-finalizar-icon', false);
-                return; // Erro já exibido dentro de tokenizarCartao()
+                return;
             }
         }
 
@@ -387,7 +635,6 @@ async function handleFinalizar() {
             payment_method:       state.paymentMethod,
         };
 
-        // Adiciona dados opcionais se disponíveis
         if (state.profileId) payload.profile_id = state.profileId;
         if (state.companyId) payload.company_id  = state.companyId;
         if (cardToken)       payload.card_token   = cardToken;
@@ -405,15 +652,11 @@ async function handleFinalizar() {
             throw new Error(data.error || data.message || 'Erro ao processar assinatura.');
         }
 
-        // --- Trata o resultado ---
         if (data.payment_status === 'paid') {
-            // Pagamento aprovado imediatamente (cartão)
             showSuccess(data.message);
         } else if (data.payment_status === 'pending') {
-            // Pagamento pendente (boleto/PIX)
             showPending(data.payment_url);
         } else {
-            // Pagamento recusado
             throw new Error(data.message || 'Pagamento recusado. Verifique os dados do cartão.');
         }
 
@@ -427,14 +670,14 @@ async function handleFinalizar() {
 
 /**
  * Tokeniza os dados do cartão usando o SDK da Iugu.
- * Retorna o token (string) em caso de sucesso, ou null em caso de erro.
+ * @returns {Promise<string|null>} Token ou null em caso de erro.
  */
 function tokenizarCartao() {
     return new Promise((resolve) => {
-        const number  = document.getElementById('input-card-number').value.replace(/\s/g, '');
-        const name    = document.getElementById('input-card-name').value.trim();
-        const expiry  = document.getElementById('input-card-expiry').value; // MM/AA
-        const cvv     = document.getElementById('input-card-cvv').value.trim();
+        const number = document.getElementById('input-card-number').value.replace(/\s/g, '');
+        const name   = document.getElementById('input-card-name').value.trim();
+        const expiry = document.getElementById('input-card-expiry').value;
+        const cvv    = document.getElementById('input-card-cvv').value.trim();
 
         if (!number || !name || !expiry || !cvv) {
             showError('Por favor, preencha todos os dados do cartão.');
@@ -444,8 +687,6 @@ function tokenizarCartao() {
 
         const [expMonth, expYear] = expiry.split('/');
 
-        // Chama o SDK da Iugu para criar o token
-        // O SDK está carregado via <script> no index.html
         Iugu.createPaymentToken({
             number:             number,
             verification_value: cvv,
@@ -455,11 +696,10 @@ function tokenizarCartao() {
             year:               '20' + expYear,
         }, (response) => {
             if (response.errors) {
-                const errorMsg = Object.values(response.errors).join(', ');
-                showError('Dados do cartão inválidos: ' + errorMsg);
+                showError('Dados do cartão inválidos: ' + Object.values(response.errors).join(', '));
                 resolve(null);
             } else {
-                resolve(response.id); // O token gerado pela Iugu
+                resolve(response.id);
             }
         });
     });
@@ -472,8 +712,8 @@ function tokenizarCartao() {
 function showSuccess(message) {
     document.getElementById(`step-${currentStep}`)?.classList.add('hidden');
     document.getElementById('progress-steps').classList.add('hidden');
-    const successPanel = document.getElementById('step-success');
-    successPanel.classList.remove('hidden');
+    const panel = document.getElementById('step-success');
+    panel.classList.remove('hidden');
     if (message) document.getElementById('success-message').textContent = message;
     currentStep = 'success';
 }
@@ -481,11 +721,9 @@ function showSuccess(message) {
 function showPending(paymentUrl) {
     document.getElementById(`step-${currentStep}`)?.classList.add('hidden');
     document.getElementById('progress-steps').classList.add('hidden');
-    const pendingPanel = document.getElementById('step-pending');
-    pendingPanel.classList.remove('hidden');
-    if (paymentUrl) {
-        document.getElementById('link-pagamento').href = paymentUrl;
-    }
+    const panel = document.getElementById('step-pending');
+    panel.classList.remove('hidden');
+    if (paymentUrl) document.getElementById('link-pagamento').href = paymentUrl;
     currentStep = 'pending';
 }
 
@@ -493,19 +731,20 @@ function showPending(paymentUrl) {
 // UTILITÁRIOS
 // ============================================================
 
-/** Exibe uma mensagem de erro temporária no topo da tela. */
+/**
+ * Exibe um toast de erro temporário no topo da tela.
+ * Remove automaticamente após 5 segundos.
+ */
 function showError(message) {
-    // Remove qualquer toast anterior
     document.getElementById('toast-error')?.remove();
 
     const toast = document.createElement('div');
-    toast.id = 'toast-error';
-    toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 animate-bounce';
+    toast.id        = 'toast-error';
+    toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2';
     toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
     document.body.appendChild(toast);
 
-    // Remove após 4 segundos
-    setTimeout(() => toast.remove(), 4000);
+    setTimeout(() => toast.remove(), 5000);
 }
 
 /** Ativa/desativa o estado de loading de um botão. */
@@ -517,7 +756,7 @@ function setButtonLoading(btnId, textId, loaderId, iconId, isLoading) {
 
     if (!btn) return;
     btn.disabled = isLoading;
-    if (text)   text.textContent = isLoading ? 'Aguarde...' : text.dataset.original || text.textContent;
+    if (text)   text.textContent = isLoading ? 'Aguarde...' : (text.dataset.original || text.textContent);
     if (loader) loader.classList.toggle('hidden', !isLoading);
     if (icon)   icon.classList.toggle('hidden', isLoading);
 }

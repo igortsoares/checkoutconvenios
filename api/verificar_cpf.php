@@ -54,7 +54,20 @@ if ($cpfRaw === '') {
 $cpfDigits = onlyDigits($cpfRaw);
 if (strlen($cpfDigits) !== 11) {
     http_response_code(400);
-    echo json_encode(['error' => 'CPF inválido. Informe 11 dígitos.']);
+    echo json_encode(['error' => 'CPF inválido. Informe todos os 11 dígitos.']);
+    exit;
+}
+
+// ============================================================
+// VALIDAÇÃO MATEMÁTICA DO CPF
+// Implementa o algoritmo oficial dos dois dígitos verificadores.
+// Rejeita CPFs com todos os dígitos iguais (ex: 111.111.111-11)
+// e CPFs com dígitos verificadores incorretos.
+// Esta validação é uma segunda camada de segurança além do frontend.
+// ============================================================
+if (!validarCPF($cpfDigits)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'CPF inválido. O número informado não é um CPF válido.']);
     exit;
 }
 
