@@ -1,4 +1,5 @@
 <?php
+
 /**
  * ============================================================
  * ARQUIVO: /api/processar_assinatura.php
@@ -153,17 +154,32 @@ if ($profileId === '' && !empty($profileData['id'])) {
     $profileId = $profileData['id'];
 }
 
+$phoneDigits = onlyDigits($body['phone']); // ex: 61999908491
+
+$ddd = substr($phoneDigits, 0, 2);
+$number = substr($phoneDigits, 2); // resto (deve ficar com 9 dígitos p/ celular)
+
+if (strlen($ddd) !== 2 || strlen($number) !== 9) {
+    http_response_code(400);
+    echo json_encode([
+        'error' => 'Telefone inválido. Envie no padrão DDD + número (11 dígitos), ex: 61999908491.',
+        'details' => ['ddd' => $ddd, 'number' => $number, 'len' => strlen($phoneDigits)]
+    ]);
+    exit;
+}
+
+
 // ============================================================
 // PASSO 3: Criar ou buscar o cliente na Iugu
 // A Iugu identifica clientes por e-mail. Tentamos criar;
 // se já existir, a Iugu retorna o cliente existente.
 // ============================================================
 $iuguCustomerPayload = [
-    'email'       => $email,
-    'name'        => $fullName,
-    'cpf_cnpj'    => $cpfDigits,
-    'phone'       => $phone,
-    'phone_prefix' => substr($phone, 0, 2), // DDD
+    'email'        => $email,
+    'name'         => $fullName,
+    'cpf_cnpj'     => $cpfDigits,
+    'phone_prefix' => $ddd,
+    'phone'        => $number,
 ];
 
 $iuguCustomerRes = iuguCall('POST', 'customers', $iuguCustomerPayload);
@@ -287,7 +303,7 @@ if ($paymentStatus === 'paid') {
 $response = [
     'success'        => ($paymentStatus !== 'failed'),
     'payment_status' => $paymentStatus,
-    'message'        => match($paymentStatus) {
+    'message'        => match ($paymentStatus) {
         'paid'    => 'Pagamento aprovado! Seu acesso foi liberado.',
         'pending' => 'Aguardando confirmação do pagamento.',
         'failed'  => 'Pagamento recusado. Tente novamente.',
@@ -309,7 +325,8 @@ echo json_encode($response);
 // Chamada imediatamente após pagamento de cartão aprovado,
 // ou pelo webhook após confirmação de boleto/PIX.
 // ============================================================
-function liberarAcesso(string $profileId, string $subscriptionId, string $cpf, string $fullName): void {
+function liberarAcesso(string $profileId, string $subscriptionId, string $cpf, string $fullName): void
+{
     // --- Cria o entitlement no banco ---
     // O entitlement é a "prova" de que o usuário tem direito ao produto.
     // expires_at: 1 ano a partir de hoje (ajuste conforme o plano)
