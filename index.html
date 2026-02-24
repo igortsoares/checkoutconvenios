@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TKS Vantagens — Assine Agora</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome (ícones) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts: Sora -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS Local -->
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- SDK da Iugu (tokenização de cartão no frontend) -->
+    <!-- IMPORTANTE: Substitua "SEU_ACCOUNT_ID_IUGU" pelo Account ID real da sua conta Iugu -->
+    <script src="https://js.iugu.com/v2" data-iugu-account-id="SEU_ACCOUNT_ID_IUGU"></script>
+</head>
+
+<body class="min-h-screen bg-slate-50 font-sora text-slate-800 flex flex-col items-center justify-center p-4">
+
+    <!-- Fundo decorativo -->
+    <div class="fixed top-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-tks-primary/5 rounded-full blur-[120px] pointer-events-none z-0"></div>
+    <div class="fixed bottom-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-blue-100/40 rounded-full blur-[120px] pointer-events-none z-0"></div>
+
+    <main class="w-full max-w-lg relative z-10">
+
+        <!-- Logo -->
+        <div class="flex justify-center mb-8">
+            <img src="https://tksvantagens.com.br/wp-content/uploads/2024/01/logo-tks-vantagens.png"
+                 alt="TKS Vantagens"
+                 class="h-14 w-auto object-contain">
+        </div>
+
+        <!-- Indicador de progresso (4 etapas) -->
+        <div class="flex items-center justify-center mb-8 gap-2" id="progress-steps">
+            <div class="step-item flex flex-col items-center" data-step="1">
+                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-tks-primary bg-tks-primary text-white">1</div>
+                <span class="text-xs mt-1 text-tks-primary font-semibold">CPF</span>
+            </div>
+            <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
+            <div class="step-item flex flex-col items-center" data-step="2">
+                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">2</div>
+                <span class="text-xs mt-1 text-slate-400">Plano</span>
+            </div>
+            <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
+            <div class="step-item flex flex-col items-center" data-step="3">
+                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">3</div>
+                <span class="text-xs mt-1 text-slate-400">Dados</span>
+            </div>
+            <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
+            <div class="step-item flex flex-col items-center" data-step="4">
+                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">4</div>
+                <span class="text-xs mt-1 text-slate-400">Pagamento</span>
+            </div>
+        </div>
+
+        <!-- ======================================================
+             ETAPA 1: VERIFICAÇÃO DO CPF
+        ====================================================== -->
+        <div id="step-1" class="step-panel bg-white rounded-3xl shadow-clean p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-tks-primary to-purple-400"></div>
+
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Bem-vindo!</h2>
+            <p class="text-slate-400 text-sm mb-6">Digite seu CPF para começar.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CPF do Titular</label>
+                    <div class="relative">
+                        <i class="fas fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-lg"></i>
+                        <input type="text" id="input-cpf" placeholder="000.000.000-00" maxlength="14"
+                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all text-lg font-medium">
+                    </div>
+                </div>
+
+                <!-- Badge de convênio (aparece quando CPF é de convênio) -->
+                <div id="badge-convenio" class="hidden items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                    <i class="fas fa-building text-green-600"></i>
+                    <div>
+                        <p class="text-xs font-bold text-green-700 uppercase tracking-wide">Convênio Identificado</p>
+                        <p class="text-sm font-semibold text-green-800" id="badge-company-name">—</p>
+                    </div>
+                    <i class="fas fa-check-circle text-green-500 ml-auto text-lg"></i>
+                </div>
+
+                <button id="btn-verificar-cpf"
+                        class="w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 flex justify-center items-center gap-2">
+                    <span id="btn-verificar-text">Continuar</span>
+                    <i class="fas fa-arrow-right text-xs opacity-70" id="btn-verificar-arrow"></i>
+                    <i class="fas fa-circle-notch fa-spin hidden" id="btn-verificar-loader"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ======================================================
+             ETAPA 2: SELEÇÃO DO PLANO
+        ====================================================== -->
+        <div id="step-2" class="step-panel hidden bg-white rounded-3xl shadow-clean p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-tks-primary to-purple-400"></div>
+
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Escolha seu Plano</h2>
+            <p class="text-slate-400 text-sm mb-6" id="planos-subtitle">Selecione o plano ideal para você.</p>
+
+            <!-- Container dos planos (preenchido dinamicamente pelo JS) -->
+            <div id="planos-container" class="space-y-3 mb-6">
+                <!-- Loader enquanto busca os planos -->
+                <div id="planos-loader" class="flex flex-col items-center py-8 text-slate-400">
+                    <i class="fas fa-circle-notch fa-spin text-2xl mb-2 text-tks-primary"></i>
+                    <span class="text-sm">Carregando planos...</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="goToStep(1)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                    <i class="fas fa-arrow-left mr-1"></i> Voltar
+                </button>
+                <button id="btn-selecionar-plano"
+                        class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    Continuar <i class="fas fa-arrow-right ml-1 text-xs opacity-70"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ======================================================
+             ETAPA 3: DADOS PESSOAIS
+        ====================================================== -->
+        <div id="step-3" class="step-panel hidden bg-white rounded-3xl shadow-clean p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-tks-primary to-purple-400"></div>
+
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Seus Dados</h2>
+            <p class="text-slate-400 text-sm mb-6">Confirme ou preencha suas informações.</p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome Completo *</label>
+                    <input type="text" id="input-nome" placeholder="Seu nome completo"
+                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">E-mail *</label>
+                    <input type="email" id="input-email" placeholder="seu@email.com"
+                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Telefone *</label>
+                        <input type="text" id="input-telefone" placeholder="(61) 99999-9999" maxlength="15"
+                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nascimento *</label>
+                        <input type="date" id="input-nascimento"
+                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-6">
+                <button onclick="goToStep(2)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                    <i class="fas fa-arrow-left mr-1"></i> Voltar
+                </button>
+                <button id="btn-confirmar-dados"
+                        class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
+                    Continuar <i class="fas fa-arrow-right ml-1 text-xs opacity-70"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- ======================================================
+             ETAPA 4: PAGAMENTO
+        ====================================================== -->
+        <div id="step-4" class="step-panel hidden bg-white rounded-3xl shadow-clean p-8 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-tks-primary to-purple-400"></div>
+
+            <h2 class="text-xl font-bold text-slate-800 mb-1">Pagamento</h2>
+            <p class="text-slate-400 text-sm mb-6">Escolha como deseja pagar.</p>
+
+            <!-- Resumo do plano selecionado -->
+            <div class="bg-slate-50 rounded-2xl p-4 mb-6 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-slate-400 font-semibold uppercase tracking-wide">Plano Selecionado</p>
+                    <p class="font-bold text-slate-800" id="resumo-plano-nome">—</p>
+                </div>
+                <p class="text-2xl font-bold text-tks-primary" id="resumo-plano-preco">—</p>
+            </div>
+
+            <!-- Seleção do método de pagamento -->
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                        data-method="credit_card">
+                    <i class="fas fa-credit-card text-lg"></i>
+                    <span>Cartão</span>
+                </button>
+                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                        data-method="bank_slip">
+                    <i class="fas fa-barcode text-lg"></i>
+                    <span>Boleto</span>
+                </button>
+                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                        data-method="pix">
+                    <i class="fas fa-qrcode text-lg"></i>
+                    <span>PIX</span>
+                </button>
+            </div>
+
+            <!-- Formulário de Cartão de Crédito (visível apenas quando cartão selecionado) -->
+            <div id="form-cartao" class="hidden space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Número do Cartão</label>
+                    <input type="text" id="input-card-number" placeholder="0000 0000 0000 0000" maxlength="19"
+                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all tracking-widest">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome no Cartão</label>
+                    <input type="text" id="input-card-name" placeholder="NOME COMO NO CARTÃO"
+                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all uppercase">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Validade</label>
+                        <input type="text" id="input-card-expiry" placeholder="MM/AA" maxlength="5"
+                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CVV</label>
+                        <input type="text" id="input-card-cvv" placeholder="000" maxlength="4"
+                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aviso para Boleto/PIX -->
+            <div id="aviso-boleto-pix" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-700">
+                <i class="fas fa-info-circle mr-2"></i>
+                <span id="aviso-boleto-pix-text">Após clicar em "Finalizar", você receberá o código para pagamento.</span>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="goToStep(3)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                    <i class="fas fa-arrow-left mr-1"></i> Voltar
+                </button>
+                <button id="btn-finalizar"
+                        class="flex-2 flex-grow py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        disabled>
+                    <span id="btn-finalizar-text">Finalizar Assinatura</span>
+                    <i class="fas fa-lock text-xs opacity-70" id="btn-finalizar-icon"></i>
+                    <i class="fas fa-circle-notch fa-spin hidden" id="btn-finalizar-loader"></i>
+                </button>
+            </div>
+
+            <p class="text-center text-xs text-slate-400 mt-4">
+                <i class="fas fa-shield-alt mr-1 text-green-500"></i>
+                Pagamento 100% seguro e criptografado
+            </p>
+        </div>
+
+        <!-- ======================================================
+             TELA DE SUCESSO
+        ====================================================== -->
+        <div id="step-success" class="step-panel hidden bg-white rounded-3xl shadow-clean p-8 text-center">
+            <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-check-circle text-green-500 text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Assinatura Confirmada!</h2>
+            <p class="text-slate-500 mb-6" id="success-message">Seu acesso ao Clube de Vantagens foi liberado com sucesso.</p>
+            <a href="https://app.tksvantagens.com.br/main" target="_blank"
+               class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
+                <i class="fas fa-star mr-2"></i> Acessar o Clube de Vantagens
+            </a>
+        </div>
+
+        <!-- ======================================================
+             TELA DE PAGAMENTO PENDENTE (Boleto/PIX)
+        ====================================================== -->
+        <div id="step-pending" class="step-panel hidden bg-white rounded-3xl shadow-clean p-8 text-center">
+            <div class="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i class="fas fa-clock text-yellow-500 text-4xl"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Aguardando Pagamento</h2>
+            <p class="text-slate-500 mb-6">Seu acesso será liberado automaticamente após a confirmação do pagamento.</p>
+            <a id="link-pagamento" href="#" target="_blank"
+               class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 mb-3">
+                <i class="fas fa-external-link-alt mr-2"></i> Abrir Boleto / PIX
+            </a>
+            <p class="text-xs text-slate-400">O link também foi enviado para o seu e-mail.</p>
+        </div>
+
+        <p class="text-center text-xs text-slate-400 mt-6">
+            © 2026 TKS Vantagens. Todos os direitos reservados.
+        </p>
+    </main>
+
+    <!-- JavaScript -->
+    <script src="js/checkout.js"></script>
+</body>
+</html>

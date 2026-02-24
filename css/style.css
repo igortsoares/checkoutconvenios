@@ -1,0 +1,131 @@
+/* ============================================================
+   CHECKOUT CONVÊNIOS - TKS VANTAGENS
+   Arquivo: css/style.css
+   Descrição: Estilos customizados do formulário de checkout.
+              Complementa o Tailwind CSS com variáveis de marca
+              e animações.
+============================================================ */
+
+/* --- Variáveis de Cor da Marca TKS --- */
+:root {
+    --tks-primary: #6C3FC5;       /* Roxo principal */
+    --tks-primary-rgb: 108, 63, 197;
+    --tks-dark: rgba(108, 63, 197, 0.85);
+}
+
+/* --- Fonte Sora --- */
+.font-sora { font-family: 'Sora', sans-serif; }
+
+/* --- Classes de Cor da Marca (usadas via Tailwind) --- */
+.text-tks-primary   { color: var(--tks-primary) !important; }
+.bg-tks-primary     { background-color: var(--tks-primary) !important; }
+.bg-tks-dark        { background-color: var(--tks-dark) !important; }
+.border-tks-primary { border-color: var(--tks-primary) !important; }
+.ring-tks-primary   { --tw-ring-color: rgba(var(--tks-primary-rgb), 0.3) !important; }
+.focus\:ring-tks-primary\/10:focus { box-shadow: 0 0 0 4px rgba(var(--tks-primary-rgb), 0.10) !important; }
+.focus\:border-tks-primary:focus   { border-color: var(--tks-primary) !important; }
+.shadow-lg { box-shadow: 0 10px 25px -5px rgba(var(--tks-primary-rgb), 0.25), 0 4px 6px -2px rgba(var(--tks-primary-rgb), 0.1); }
+
+/* --- Sombra limpa para os cards --- */
+.shadow-clean {
+    box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* --- Animação de entrada dos painéis --- */
+.step-panel {
+    animation: fadeInUp 0.4s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Card de Plano --- */
+.plan-card {
+    cursor: pointer;
+    border: 2px solid #e2e8f0;
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: white;
+}
+
+.plan-card:hover {
+    border-color: var(--tks-primary);
+    background: rgba(var(--tks-primary-rgb), 0.02);
+}
+
+.plan-card.selected {
+    border-color: var(--tks-primary);
+    background: rgba(var(--tks-primary-rgb), 0.05);
+    box-shadow: 0 0 0 3px rgba(var(--tks-primary-rgb), 0.15);
+}
+
+.plan-card .plan-radio {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.plan-card.selected .plan-radio {
+    border-color: var(--tks-primary);
+    background: var(--tks-primary);
+}
+
+.plan-card.selected .plan-radio::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+}
+
+/* --- Botão de Método de Pagamento --- */
+.payment-method-btn.selected {
+    border-color: var(--tks-primary) !important;
+    color: var(--tks-primary) !important;
+    background: rgba(var(--tks-primary-rgb), 0.05);
+}
+
+/* --- Indicador de Progresso --- */
+.step-circle.active {
+    background: var(--tks-primary) !important;
+    border-color: var(--tks-primary) !important;
+    color: white !important;
+}
+
+.step-circle.completed {
+    background: #10b981 !important;
+    border-color: #10b981 !important;
+    color: white !important;
+}
+
+.step-line.active {
+    background: var(--tks-primary) !important;
+}
+
+/* --- Fundo decorativo animado --- */
+@keyframes float-slow {
+    0%, 100% { transform: translateY(0px) scale(1); }
+    50%       { transform: translateY(-20px) scale(1.02); }
+}
+
+.anim-float-slow {
+    animation: float-slow 8s ease-in-out infinite;
+}
