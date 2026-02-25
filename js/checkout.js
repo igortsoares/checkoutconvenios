@@ -80,6 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleVerificarCpf();
     });
 
+    // Link "Termos e Condições" abre o modal
+    document.getElementById('link-termos')?.addEventListener('click', openTermsModal);
+
+    // Fechar modal ao clicar no backdrop (fora do card)
+    document.getElementById('modal-termos')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('modal-termos')) closeTermsModal();
+    });
+
+    // Fechar modal com tecla Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeTermsModal();
+    });
+
     // Limpa o erro inline ao editar os campos da Etapa 3
     ['input-nome', 'input-email', 'input-telefone', 'input-nascimento'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', () => clearFieldError(id));
@@ -593,7 +606,7 @@ function selectPaymentMethod(method) {
             : 'Após clicar em "Finalizar", um boleto bancário será gerado para você.';
     }
 
-    document.getElementById('btn-finalizar').disabled = false;
+    updateFinalizarButton();
 }
 
 /**
@@ -603,6 +616,15 @@ function selectPaymentMethod(method) {
 async function handleFinalizar() {
     if (!state.paymentMethod) {
         showError('Por favor, selecione um método de pagamento.');
+        return;
+    }
+
+    // Valida aceite dos Termos e Condições
+    const chkTermos  = document.getElementById('chk-termos');
+    const erroTermos = document.getElementById('erro-termos');
+    if (!chkTermos || !chkTermos.checked) {
+        erroTermos?.classList.remove('hidden');
+        erroTermos?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         return;
     }
 
@@ -798,4 +820,66 @@ function maskCardExpiry(e) {
     let v = e.target.value.replace(/\D/g, '').slice(0, 4);
     if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
     e.target.value = v;
+}
+
+// ============================================================
+// MODAL DE TERMOS E CONDIÇÕES
+// ============================================================
+
+/**
+ * Abre o modal de Termos e Condições.
+ * Chamado pelo link "Termos e Condições" na Etapa 4.
+ */
+function openTermsModal(e) {
+    if (e) e.preventDefault();
+    const modal = document.getElementById('modal-termos');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden'; // Impede scroll do fundo
+}
+
+/**
+ * Fecha o modal de Termos e Condições.
+ */
+function closeTermsModal() {
+    const modal = document.getElementById('modal-termos');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+}
+
+/**
+ * Chamado pelo botão "Li e aceito" dentro do modal.
+ * Marca o checkbox e fecha o modal.
+ */
+function acceptTermsFromModal() {
+    const chk = document.getElementById('chk-termos');
+    chk.checked = true;
+    onTermsChange();
+    closeTermsModal();
+}
+
+/**
+ * Chamado quando o checkbox de termos muda de estado.
+ * Atualiza a visibilidade do erro e habilita/desabilita o botão finalizar.
+ */
+function onTermsChange() {
+    const chk       = document.getElementById('chk-termos');
+    const erroTermos = document.getElementById('erro-termos');
+    if (chk.checked) {
+        erroTermos.classList.add('hidden');
+    }
+    updateFinalizarButton();
+}
+
+/**
+ * Habilita o botão "Finalizar" apenas quando:
+ *  - Um método de pagamento foi selecionado, E
+ *  - O checkbox de termos está marcado.
+ */
+function updateFinalizarButton() {
+    const chk    = document.getElementById('chk-termos');
+    const btn    = document.getElementById('btn-finalizar');
+    if (!btn) return;
+    btn.disabled = !(state.paymentMethod && chk && chk.checked);
 }

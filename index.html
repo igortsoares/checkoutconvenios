@@ -245,6 +245,27 @@
                 <span id="aviso-boleto-pix-text">Após clicar em "Finalizar", você receberá o código para pagamento.</span>
             </div>
 
+            <!-- Checkbox obrigatório de Termos e Condições -->
+            <div class="mb-5">
+                <label class="flex items-start gap-3 cursor-pointer group">
+                    <input type="checkbox"
+                           id="chk-termos"
+                           class="mt-0.5 w-5 h-5 rounded border-2 border-slate-300 text-tks-primary accent-tks-primary cursor-pointer flex-shrink-0"
+                           onchange="onTermsChange()">
+                    <span class="text-sm text-slate-600 leading-relaxed">
+                        Li e aceito os
+                        <a href="#" id="link-termos" class="text-tks-primary font-semibold underline hover:text-tks-dark transition-colors">
+                            Termos e Condições
+                        </a>
+                        de uso da TKS Vantagens.
+                    </span>
+                </label>
+                <p id="erro-termos" class="hidden text-red-500 text-xs mt-2 ml-8">
+                    <i class="fas fa-exclamation-circle mr-1"></i>
+                    Você precisa aceitar os Termos e Condições para continuar.
+                </p>
+            </div>
+
             <div class="flex gap-3">
                 <button onclick="goToStep(3)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
                     <i class="fas fa-arrow-left mr-1"></i> Voltar
@@ -302,6 +323,65 @@
 
     <!-- JavaScript -->
     <!-- Cache busting: atualizar ?v=X.X.X a cada deploy para forçar o navegador a recarregar o arquivo -->
-    <script src="js/checkout.js?v=1.0.3"></script>
+    <script src="js/checkout.js?v=1.0.4"></script>
+    <!-- ======================================================
+         MODAL: TERMOS E CONDIÇÕES
+    ====================================================== -->
+    <div id="modal-termos"
+         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+         role="dialog" aria-modal="true" aria-labelledby="modal-termos-titulo">
+
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+
+            <!-- Cabeçalho do modal -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 flex-shrink-0">
+                <h2 id="modal-termos-titulo" class="text-lg font-bold text-slate-800">
+                    <i class="fas fa-file-contract mr-2 text-tks-primary"></i>
+                    Termos e Condições de Uso
+                </h2>
+                <button onclick="closeTermsModal()"
+                        class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <!-- Conteúdo com scroll -->
+            <div class="overflow-y-auto px-6 py-5 text-sm text-slate-600 leading-relaxed space-y-4 flex-1">
+                <p>O uso da ficha de cadastro do aplicativo TKS Vantagens (&ldquo;Aplicativo&rdquo;) implica a aceitação integral deste Termo de Uso (&ldquo;Termo&rdquo;). Ao preencher a ficha de cadastro e utilizar o Aplicativo, o usuário declara ter lido, compreendido e concordado com todas as condições abaixo.</p>
+
+                <h3 class="font-bold text-slate-800 text-base">1. Coleta e Tratamento de Dados</h3>
+                <p><strong>1.1.</strong> O usuário reconhece que, ao preencher a ficha de cadastro, fornecerá dados pessoais &mdash; nome, endereço, e-mail, telefone, CPF, entre outros &mdash; que serão tratados pela TKS Vantagens em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei n.º 13.709/2018 &ndash; LGPD).</p>
+                <p><strong>1.2.</strong> A TKS Vantagens compromete-se a tratar esses dados com segurança e confidencialidade, adotando medidas técnicas e administrativas aptas a protêgê-los contra acessos não autorizados, perda ou tratamento indevido.</p>
+                <p><strong>1.3.</strong> Os dados poderão ser utilizados para: análise estatística; melhoria do Aplicativo; promoções e campanhas de marketing de produtos próprios, do grupo e/ou de parceiros; comunicação via e-mail, SMS, WhatsApp e/ou ligação telefônica; monitoramento de atividades de consumo e utilização dentro do aplicativo.</p>
+
+                <h3 class="font-bold text-slate-800 text-base">2. Consentimento e Direitos do Titular</h3>
+                <p><strong>2.1.</strong> Ao se cadastrar, o usuário consente expressamente com a coleta e tratamento de seus dados conforme este Termo.</p>
+                <p><strong>2.2.</strong> O usuário pode solicitar &mdash; a qualquer momento &mdash; acesso, retificação, anonimização, portabilidade, eliminação ou bloqueio dos dados, bem como revogar o consentimento, enviando e-mail para <a href="mailto:contato@tksvantagens.com.br" class="text-tks-primary underline">contato@tksvantagens.com.br</a>.</p>
+                <p><strong>2.3.</strong> A revogação de consentimento poderá inviabilizar o uso do Aplicativo.</p>
+
+                <h3 class="font-bold text-slate-800 text-base">3. Planos, Pagamentos e Penalidades</h3>
+                <p><strong>3.1. Modalidades de Assinatura:</strong> A TKS Vantagens oferece planos mensais e semestrais (fidelidade mínima de seis meses). O usuário seleciona a modalidade desejada no momento da contratação.</p>
+                <p><strong>3.2. Cobrança nos Planos Semestrais:</strong> Nas adesões aos planos semestrais, não ocorre bloqueio do limite do cartão de crédito no valor total das seis mensalidades. É cobrado apenas o valor da mensalidade corrente a cada ciclo mensal.</p>
+                <p><strong>3.3. Inadimplência:</strong> O usuário declara estar ciente de que, em caso de descumprimento de pagamento em planos semestrais, poderá: ser cobrado judicialmente; ter seu nome negativado nos órgãos de proteção ao crédito; ter o débito protestado em cartório. Sobre a mensalidade em atraso incidirão juros e multa previstos em lei e/ou na fatura enviada.</p>
+                <p><strong>3.4. Cancelamento Antecipado (Planos Semestrais):</strong> A rescisão antes do término do período de fidelidade implica pagamento de multa de 50% sobre o valor das faturas restantes. O usuário autoriza a TKS Vantagens a debitar tal multa no cartão de crédito cadastrado. Caso o limite seja insuficiente, a multa poderá ser cobrada judicialmente, bem como resultar em negativação e protesto.</p>
+
+                <h3 class="font-bold text-slate-800 text-base">4. Disposições Finais</h3>
+                <p><strong>4.1.</strong> Este Termo constitui o acordo integral entre as partes, prevalecendo sobre quaisquer entendimentos anteriores.</p>
+                <p><strong>4.2.</strong> A TKS Vantagens pode alterar este Termo a qualquer momento, publicando nova versão no Aplicativo. O uso contínuo após a publicação implica aceitação das modificações.</p>
+                <p><strong>4.3.</strong> Este Termo é regido pelas leis brasileiras. Fica eleito o foro da Comarca de São Paulo/SP para dirimir eventuais controvérsias.</p>
+
+                <p class="font-semibold text-slate-700 border-t border-slate-100 pt-4 mt-4">Ao prosseguir com a contratação, o usuário declara ter lido, compreendido e concordado com todos os termos acima.</p>
+            </div>
+
+            <!-- Rodapé do modal -->
+            <div class="px-6 py-4 border-t border-slate-100 flex-shrink-0">
+                <button onclick="acceptTermsFromModal()"
+                        class="w-full py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark transition-colors">
+                    <i class="fas fa-check mr-2"></i> Li e aceito os Termos e Condições
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
