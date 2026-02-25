@@ -6,6 +6,9 @@
  *            no Supabase. É chamado por listar_planos.php a cada
  *            requisição, garantindo dados sempre atualizados.
  *
+ * COLUNAS REAIS DA TABELA plans (backoffice_tks):
+ *   id, name, type, price, iugu_plan_identifier, is_active, iugu_id_plan
+ *
  * AÇÕES:
  *   1. Busca todos os planos da Iugu.
  *   2. Busca todos os planos do Supabase.
@@ -23,24 +26,24 @@ function sincronizarPlanosIugu(): array {
 
     if (!$iuguResult['ok'] || empty($iuguResult['data']['items'])) {
         return [
-            'ok'    => false,
-            'error' => 'Falha ao buscar planos da Iugu.',
+            'ok'      => false,
+            'error'   => 'Falha ao buscar planos da Iugu.',
             'details' => $iuguResult,
         ];
     }
     $iuguPlans = $iuguResult['data']['items'];
 
     // ─── 2. Buscar todos os planos do Supabase ───────────────────────────────
-    // ATENÇÃO: selecionar apenas colunas que EXISTEM na tabela.
-    // A coluna `iugu_plan_id` não existe — usar apenas `iugu_plan_identifier`.
+    // Seleciona APENAS as colunas que existem na tabela:
+    // id, name, type, price, iugu_plan_identifier, is_active, iugu_id_plan
     $supabaseResult = supabaseGet(
-        'plans?select=id,name,iugu_plan_identifier,price,is_active&order=name.asc'
+        'plans?select=id,name,type,price,iugu_plan_identifier,is_active,iugu_id_plan&order=name.asc'
     );
 
     if (!$supabaseResult['ok']) {
         return [
-            'ok'    => false,
-            'error' => 'Falha ao buscar planos do Supabase.',
+            'ok'      => false,
+            'error'   => 'Falha ao buscar planos do Supabase.',
             'details' => $supabaseResult,
         ];
     }
@@ -75,17 +78,17 @@ function sincronizarPlanosIugu(): array {
 
     // ─── 4. INSERIR e ATUALIZAR ───────────────────────────────────────────────
     foreach ($iuguMap as $identifier => $iuguPlan) {
-        $iuguName  = $iuguPlan['name'] ?? '';
+        $iuguName   = $iuguPlan['name'] ?? '';
+        $iuguId     = $iuguPlan['id']   ?? '';
         $priceCents = $iuguPlan['prices'][0]['value_cents'] ?? 0;
         $priceBrl   = round($priceCents / 100, 2);
 
-        // Payload mínimo com apenas os campos que existem na tabela
+        // Payload com APENAS as colunas que existem na tabela plans
         $payload = [
             'name'                 => $iuguName,
             'iugu_plan_identifier' => $identifier,
+            'iugu_id_plan'         => $iuguId,
             'price'                => $priceBrl,
-            'interval'             => $iuguPlan['interval'] ?? 1,
-            'interval_type'        => $iuguPlan['interval_type'] ?? 'months',
             'is_active'            => true,
         ];
 
@@ -105,7 +108,7 @@ function sincronizarPlanosIugu(): array {
             $sup = $supabaseMap[$identifier];
 
             $nameChanged  = ($sup['name'] !== $iuguName);
-            // Comparação de preço com tolerância de 1 centavo (evita falsos positivos de float)
+            // Tolerância de 1 centavo para evitar falsos positivos de float
             $priceChanged = (abs((float)$sup['price'] - $priceBrl) > 0.009);
             $wasInactive  = !$sup['is_active'];
 
@@ -118,11 +121,15 @@ function sincronizarPlanosIugu(): array {
                     $summary['updated']++;
                     if ($wasInactive) $summary['reactivated']++;
                     $actions[] = [
-                        'action'       => 'updated',
-                        'plan'         => $iuguName,
-                        'name_changed' => $nameChanged,
-                        'price_changed'=> $priceChanged,
-                        'reactivated'  => $wasInactive,
+                        'action'        => 'updated',
+                        'plan'          => $iuguName,
+                        'name_changed'  => $nameChanged,
+                        'price_changed' => $priceChanged,
+                        'reactivated'   => $wasInactive,
+                        'old_name'      => $sup['name'],
+                        'new_name'      => $iuguName,
+                        'old_price'     => $sup['price'],
+                        'new_price'     => $priceBrl,
                     ];
                 } else {
                     $summary['errors']++;
