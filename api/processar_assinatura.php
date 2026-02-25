@@ -307,8 +307,21 @@ $subscriptionRes = supabasePost(
     ['Prefer: return=representation']
 );
 
-$subscriptionDbId = $subscriptionRes['data'][0]['id'] ?? $subscriptionRow['id'];
+if (!$subscriptionRes['ok']) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Erro ao salvar assinatura na tabela subscriptions.',
+        'details' => $subscriptionRes['data'] ?? $subscriptionRes,
+        'debug' => [
+            'account_id' => $accountId,
+            'profile_id' => $profileId,
+            'plan_id' => $planId
+        ]
+    ]);
+    exit;
+}
 
+$subscriptionDbId = $subscriptionRes['data'][0]['id'] ?? null;
 // ============================================================
 // PASSO 7: Se pagamento aprovado → Liberar acesso (entitlement)
 //          e sincronizar com a Alloyal
