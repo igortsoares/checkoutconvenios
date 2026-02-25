@@ -100,7 +100,7 @@ if (!$iuguSubscriptionId) {
 // ============================================================
 $subRes = supabaseGet(
     "subscriptions?iugu_subscription_id=eq." . rawurlencode($iuguSubscriptionId) .
-    "&select=id,user_id,status,plan_id" .
+    "&select=id,profile_id,account_id,status,plan_id" .
     "&limit=1"
 );
 
@@ -113,7 +113,7 @@ if (!$subRes['ok'] || empty($subRes['data'][0])) {
 
 $subscription = $subRes['data'][0];
 $subscriptionDbId = $subscription['id'];
-$profileId        = $subscription['user_id'];
+$profileId        = $subscription['profile_id']; // Usuário físico
 $currentStatus    = $subscription['status'];
 
 // Se já está ativa, não precisa fazer nada (idempotência)
@@ -157,7 +157,7 @@ $expiresAt = gmdate('Y-m-d\TH:i:s\Z', strtotime('+1 year'));
 
 $entitlementRow = [
     'id'          => generateUuid(),
-    'user_id'     => $profileId,
+    'profile_id'  => $profileId,  // Usuário físico (FK → profiles)
     'product_id'  => PRODUCT_ID_CLUBE,
     'source_type' => 'subscription',
     'source_id'   => $subscriptionDbId,

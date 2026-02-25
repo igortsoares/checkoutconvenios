@@ -260,26 +260,46 @@ if ($recentInvoice) {
 // ============================================================
 // PASSO 6: Registrar a assinatura no nosso banco de dados
 // Tabela: subscriptions
+// Campos gravados:
+//   - profile_id      → o usuário físico que assinou (FK → profiles)
+//   - account_id      → a conta B2B/B2C vinculada (FK → accounts)
+//   - iugu_customer_id → ID do cliente na Iugu (para consultas cruzadas)
+//   - payment_method  → credit_card | bank_slip | pix
+//   - updated_at      → data da última atualização de status
 // Status inicial: "active" (cartão aprovado) ou "pending_payment"
 // ============================================================
 $dbSubscriptionStatus = ($paymentStatus === 'paid') ? 'active' : 'pending_payment';
 
-$subscriptionRow = [
-    'id'                  => generateUuid(),
-    'user_id'             => $profileId,
-    'plan_id'             => $planId,
-    'status'              => $dbSubscriptionStatus,
-    'iugu_subscription_id' => $iuguSubscriptionId,
-    'iugu_customer_id'    => $iuguCustomerId,
-    'payment_method'      => $paymentMethod,
-    'created_at'          => nowIso(),
-    'updated_at'          => nowIso(),
-];
-
-// Se houver company_id (convênio), registra o vínculo
+// Busca o account_id da conta vinculada ao profile (B2C ou B2B via company)
+$accountId = null;
 if ($companyId !== '') {
-    $subscriptionRow['company_id'] = $companyId;
+    // Usuário de convênio: busca a conta B2B da empresa
+    $accRes = supabaseGet(
+        "accounts?company_id=eq." . rawurlencode($companyId) .
+        "&type=eq.B2B&select=id&limit=1"
+    );
+    $accountId = $accRes['data'][0]['id'] ?? null;
+} else {
+    // Usuário B2C: busca a conta B2C vinculada ao profile
+    $accRes = supabaseGet(
+        "accounts?profile_id=eq." . rawurlencode($profileId) .
+        "&type=eq.B2C&select=id&limit=1"
+    );
+    $accountId = $accRes['data'][0]['id'] ?? null;
 }
+
+$subscriptionRow = [
+    'id'                   => generateUuid(),
+    'profile_id'           => $profileId,       // Usuário físico (PRINCIPAL)
+    'account_id'           => $accountId,       // Conta B2B ou B2C vinculada
+    'plan_id'              => $planId,
+    'status'               => $dbSubscriptionStatus,
+    'iugu_subscription_id' => $iuguSubscriptionId,
+    'iugu_customer_id'     => $iuguCustomerId,  // ID do cliente na Iugu
+    'payment_method'       => $paymentMethod,   // credit_card | bank_slip | pix
+    'created_at'           => nowIso(),
+    'updated_at'           => nowIso(),
+];
 
 $subscriptionRes = supabasePost(
     'subscriptions',
@@ -334,7 +354,7 @@ function liberarAcesso(string $profileId, string $subscriptionId, string $cpf, s
 
     $entitlementRow = [
         'id'          => generateUuid(),
-        'user_id'     => $profileId,
+        'profile_id'  => $profileId,       // Usuário físico (FK → profiles)
         'product_id'  => PRODUCT_ID_CLUBE, // Clube de Vantagens
         'source_type' => 'subscription',
         'source_id'   => $subscriptionId,
