@@ -9,23 +9,23 @@
  *  quando um evento ocorre, como a confirmação de pagamento de
  *  um boleto ou PIX.
  *
- *  Você deve cadastrar a URL deste arquivo no painel da Iugu em:
- *  Configurações → Webhooks → URL de Notificação
- *  Exemplo: https://seudominio.com.br/api/webhook_iugu.php
+ *  URL cadastrada no painel da Iugu:
+ *  https://tksvantagens.com.br/convenios/api/webhook_iugu.php
  *
- * EVENTOS TRATADOS:
- *  - invoice.status_changed: Disparado quando o status de uma
- *    fatura muda. Verificamos se o novo status é "paid" para
- *    liberar o acesso do usuário.
+ * ATENÇÃO — FORMATO DO PAYLOAD DA IUGU:
+ *  A Iugu envia os dados com Content-Type: application/x-www-form-urlencoded
+ *  (NÃO é JSON). Os dados chegam via $_POST, não via php://input.
  *
- * SEGURANÇA:
- *  - A Iugu envia um token de verificação no campo "token" do
- *    payload. Você deve configurar este token no painel da Iugu
- *    e adicioná-lo ao .env como IUGU_WEBHOOK_TOKEN.
+ *  Estrutura do payload (campos planos, não aninhados):
+ *   - event            → nome do evento (ex: "invoice.status_changed")
+ *   - data[id]         → ID da fatura
+ *   - data[status]     → status da fatura (ex: "paid")
+ *   - data[subscription_id] → ID da assinatura na Iugu
+ *   - authorization    → token de segurança configurado no gatilho
  *
  * FLUXO:
- *  1. Recebe o evento da Iugu
- *  2. Valida o token de segurança
+ *  1. Recebe o evento da Iugu via $_POST
+ *  2. Valida o token de segurança (campo "authorization")
  *  3. Verifica se o evento é "invoice.status_changed" e status = "paid"
  *  4. Busca a assinatura no nosso banco pelo iugu_subscription_id
  *  5. Atualiza o status da assinatura para "active"
@@ -46,41 +46,54 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// --- Leitura do corpo da requisição ---
-$rawBody = file_get_contents('php://input');
-$event   = json_decode($rawBody ?? '', true);
+// ============================================================
+// LEITURA DO PAYLOAD
+// A Iugu envia application/x-www-form-urlencoded, não JSON.
+// Os dados chegam via $_POST com chaves no formato data[campo].
+// ============================================================
+$event = $_POST;
 
-if (!is_array($event)) {
+// Fallback: tenta ler como JSON caso o Content-Type seja diferente
+if (empty($event)) {
+    $rawBody = file_get_contents('php://input');
+    $decoded = json_decode($rawBody ?? '', true);
+    if (is_array($decoded)) {
+        $event = $decoded;
+    }
+}
+
+if (empty($event)) {
     http_response_code(400);
-    echo json_encode(['error' => 'Payload inválido.']);
+    echo json_encode(['error' => 'Payload vazio ou inválido.']);
     exit;
 }
 
 // ============================================================
-// SEGURANÇA: Validação do Token da Iugu
-// O token enviado pela Iugu deve bater com o configurado no .env
+// SEGURANÇA: Validação do Token de Autorização
+// A Iugu envia o token no campo "authorization" do POST.
 // ============================================================
 $webhookToken = $_ENV['IUGU_WEBHOOK_TOKEN'] ?? '';
-if ($webhookToken !== '' && ($event['token'] ?? '') !== $webhookToken) {
+$receivedToken = $event['authorization'] ?? '';
+
+if ($webhookToken !== '' && $receivedToken !== $webhookToken) {
     http_response_code(401);
-    echo json_encode(['error' => 'Token de webhook inválido.']);
+    echo json_encode(['error' => 'Token de webhook inválido.', 'received' => $receivedToken]);
     exit;
 }
 
 // ============================================================
 // PASSO 1: Verificar se o evento é de pagamento confirmado
-// Só processamos eventos do tipo "invoice.status_changed"
-// com o novo status igual a "paid".
+// A Iugu envia os campos de data como data[campo] no form-urlencoded,
+// que o PHP converte automaticamente para $event['data']['campo'].
 // ============================================================
 $eventType    = $event['event'] ?? '';
-$invoiceData  = $event['data']['object'] ?? [];
+$invoiceData  = $event['data'] ?? [];
 $invoiceStatus = $invoiceData['status'] ?? '';
 
 // Ignora eventos que não são de fatura paga
 if ($eventType !== 'invoice.status_changed' || $invoiceStatus !== 'paid') {
-    // Responde 200 para a Iugu não retentar o envio
     http_response_code(200);
-    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Evento não relevante.']);
+    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Evento não relevante.', 'event' => $eventType, 'status' => $invoiceStatus]);
     exit;
 }
 
@@ -106,15 +119,14 @@ $subRes = supabaseGet(
 );
 
 if (!$subRes['ok'] || empty($subRes['data'][0])) {
-    // Assinatura não encontrada no banco — pode ser de outro sistema
     http_response_code(200);
-    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Assinatura não encontrada no banco.']);
+    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Assinatura não encontrada no banco.', 'iugu_subscription_id' => $iuguSubscriptionId]);
     exit;
 }
 
-$subscription = $subRes['data'][0];
+$subscription     = $subRes['data'][0];
 $subscriptionDbId = $subscription['id'];
-$profileId        = $subscription['profile_id']; // Usuário físico
+$profileId        = $subscription['profile_id'];
 $currentStatus    = $subscription['status'];
 
 // Se já está ativa, não precisa fazer nada (idempotência)
@@ -125,15 +137,7 @@ if ($currentStatus === 'active') {
 }
 
 // ============================================================
-// PASSO 4: Atualizar o status da assinatura para "active"
-// ============================================================
-supabasePatch(
-    "subscriptions?id=eq." . rawurlencode($subscriptionDbId),
-    ['status' => 'active', 'updated_at' => nowIso()]
-);
-
-// ============================================================
-// PASSO 5: Buscar os dados do usuário para liberar o acesso
+// PASSO 4: Buscar os dados do usuário para liberar o acesso
 // ============================================================
 $profileRes = supabaseGet(
     "profiles?id=eq." . rawurlencode($profileId) .
@@ -151,11 +155,10 @@ $cpf      = $profile['cpf'] ?? '';
 $fullName = $profile['full_name'] ?? '';
 
 // ============================================================
-// PASSO 6: Criar o entitlement e sincronizar com a Alloyal
+// PASSO 5: Liberar acesso (entitlement + Alloyal)
 // Usa a função centralizada em liberar_acesso.php
 // ============================================================
 $liberarRes = liberarAcesso($profileId, $subscriptionDbId, $cpf, $fullName);
-$alloyalRes = ['ok' => $liberarRes['alloyal']['ok'] ?? false];
 
 // ============================================================
 // RETORNO: Responde 200 para a Iugu confirmar o recebimento
