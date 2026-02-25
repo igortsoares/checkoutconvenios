@@ -21,7 +21,12 @@
  *   - data[id]         → ID da fatura
  *   - data[status]     → status da fatura (ex: "paid")
  *   - data[subscription_id] → ID da assinatura na Iugu
- *   - authorization    → token de segurança configurado no gatilho
+ *
+ *  AUTORIZAÇÃO:
+ *   O campo "authorization" do gatilho é enviado como HTTP Basic Auth.
+ *   Chega no header: Authorization: Basic base64(token:)
+ *   O PHP expõe via $_SERVER['HTTP_AUTHORIZATION'] ou
+ *   via as funções apache_request_headers() / getallheaders().
  *
  * FLUXO:
  *  1. Recebe o evento da Iugu via $_POST
@@ -70,14 +75,41 @@ if (empty($event)) {
 
 // ============================================================
 // SEGURANÇA: Validação do Token de Autorização
-// A Iugu envia o token no campo "authorization" do POST.
+// A Iugu envia o campo "authorization" como HTTP Basic Auth.
+// Header: Authorization: Basic base64(token:)
+// Tentamos ler de múltiplas fontes para máxima compatibilidade.
 // ============================================================
 $webhookToken = $_ENV['IUGU_WEBHOOK_TOKEN'] ?? '';
-$receivedToken = $event['authorization'] ?? '';
+
+// Tenta obter o header Authorization de diferentes fontes
+$authHeader = '';
+if (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['HTTP_AUTHORIZATION'];
+} elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+    $authHeader = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+} elseif (function_exists('getallheaders')) {
+    $headers = getallheaders();
+    $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+}
+
+// Decodifica o Basic Auth: "Basic base64(token:)" → extrai o token
+$receivedToken = '';
+if (strpos($authHeader, 'Basic ') === 0) {
+    $decoded = base64_decode(substr($authHeader, 6));
+    // Formato: "token:" ou apenas "token"
+    $receivedToken = rtrim($decoded, ':');
+} else {
+    // Fallback: tenta ler direto do POST (caso a Iugu mude o comportamento)
+    $receivedToken = $event['authorization'] ?? $authHeader;
+}
 
 if ($webhookToken !== '' && $receivedToken !== $webhookToken) {
     http_response_code(401);
-    echo json_encode(['error' => 'Token de webhook inválido.', 'received' => $receivedToken]);
+    echo json_encode([
+        'error'          => 'Token de webhook inválido.',
+        'auth_header'    => $authHeader,
+        'received_token' => $receivedToken,
+    ]);
     exit;
 }
 
