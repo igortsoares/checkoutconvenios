@@ -23,14 +23,23 @@
  */
 
 require __DIR__ . '/config.php';
+require __DIR__ . '/sinc_planos_iugu.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+if ($_SERVER["REQUEST_METHOD"] !== "GET") {
     http_response_code(405);
-    echo json_encode(['error' => 'Método não permitido. Use GET.']);
+    echo json_encode(["error" => "Método não permitido. Use GET."]);
     exit;
 }
+
+// --- SINCRONIZAÇÃO AUTOMÁTICA COM IUGU ---
+// Garante que os planos no banco de dados local reflitam o estado atual da Iugu.
+// Roda em background, não afeta o tempo de resposta se a Iugu estiver lenta,
+// pois o script continua com os dados que já tem no banco.
+$syncResult = sincronizarPlanosIugu();
+// Você pode opcionalmente logar $syncResult para monitorar as sincronizações.
+// file_put_contents('sync_log.txt', date('Y-m-d H:i:s') . " - " . json_encode($syncResult) . "\n", FILE_APPEND);
 
 $planType  = strtolower(trim($_GET['plan_type'] ?? 'b2c'));
 $companyId = trim($_GET['company_id'] ?? '');

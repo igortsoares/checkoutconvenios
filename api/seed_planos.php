@@ -1,5 +1,19 @@
 <?php
 /**
+ * Este arquivo foi descontinuado e substituído pela sincronização automática
+ * em `sinc_planos_iugu.php`, que é chamada por `listar_planos.php`.
+ * 
+ * O conteúdo foi mantido para referência histórica, mas o arquivo não é mais
+ * utilizado e pode ser removido com segurança.
+ */
+
+http_response_code(410); // Gone
+echo json_encode(["error" => "Este script foi descontinuado e não deve ser executado."]);
+exit;
+
+/*
+
+/**
  * ============================================================
  * ARQUIVO: /api/seed_planos.php
  * DESCRIÇÃO: Script de execução ÚNICA para popular a tabela
@@ -166,3 +180,5 @@ echo json_encode([
     ],
     'plans'    => $results,
 ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+*/
