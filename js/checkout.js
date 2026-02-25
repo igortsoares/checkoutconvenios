@@ -380,7 +380,7 @@ async function handleVerificarCpf() {
     setButtonLoading('btn-verificar-cpf', 'btn-verificar-text', 'btn-verificar-loader', 'btn-verificar-arrow', true);
 
     try {
-        const res  = await fetch(`/api/verificar_cpf.php?cpf=${encodeURIComponent(cpfVal)}`);
+        const res  = await fetch(`api/verificar_cpf.php?cpf=${encodeURIComponent(cpfVal)}`);
         const data = await res.json();
 
         if (data.error) throw new Error(data.error);
@@ -437,7 +437,7 @@ async function carregarPlanos() {
 
     loader.classList.remove('hidden');
 
-    let url = `/api/listar_planos.php?plan_type=${state.planType}`;
+    let url = `api/listar_planos.php?plan_type=${state.planType}`;
     if (state.companyId) url += `&company_id=${encodeURIComponent(state.companyId)}`;
 
     try {
@@ -662,7 +662,7 @@ async function handleFinalizar() {
         if (cardToken)       payload.card_token   = cardToken;
 
         // --- Envia para a API de processamento ---
-        const res  = await fetch('/api/processar_assinatura.php', {
+        const res  = await fetch('api/processar_assinatura.php', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify(payload),
