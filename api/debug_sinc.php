@@ -54,4 +54,22 @@ $resultado['sync_result'] = $syncResult;
 $afterSync = supabaseGet('plans?select=id,name,iugu_plan_identifier,price,is_active&order=name.asc');
 $resultado['supabase_plans_after_sync'] = $afterSync['data'];
 
+// ─── 5. Comparar antes e depois ──────────────────────────────────────────────
+$before = array_column($resultado['supabase_plans'] ?? [], null, 'iugu_plan_identifier');
+$after  = array_column($resultado['supabase_plans_after_sync'] ?? [], null, 'iugu_plan_identifier');
+$diff   = [];
+foreach ($after as $id => $plan) {
+    $old = $before[$id] ?? null;
+    if ($old && ($old['name'] !== $plan['name'] || (float)$old['price'] !== (float)$plan['price'])) {
+        $diff[] = [
+            'identifier' => $id,
+            'name_before' => $old['name'],
+            'name_after'  => $plan['name'],
+            'price_before'=> $old['price'],
+            'price_after' => $plan['price'],
+        ];
+    }
+}
+$resultado['changes_detected'] = $diff;
+
 echo json_encode($resultado, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
