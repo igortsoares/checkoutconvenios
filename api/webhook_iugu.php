@@ -35,6 +35,7 @@
  */
 
 require __DIR__ . '/config.php';
+require __DIR__ . '/liberar_acesso.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -151,26 +152,10 @@ $fullName = $profile['full_name'] ?? '';
 
 // ============================================================
 // PASSO 6: Criar o entitlement e sincronizar com a Alloyal
-// Reutilizamos a mesma lógica do processar_assinatura.php
+// Usa a função centralizada em liberar_acesso.php
 // ============================================================
-$expiresAt = gmdate('Y-m-d\TH:i:s\Z', strtotime('+1 year'));
-
-$entitlementRow = [
-    'id'          => generateUuid(),
-    'profile_id'  => $profileId,  // Usuário físico (FK → profiles)
-    'product_id'  => PRODUCT_ID_CLUBE,
-    'source_type' => 'subscription',
-    'source_id'   => $subscriptionDbId,
-    'status'      => 'active',
-    'expires_at'  => $expiresAt,
-    'created_at'  => nowIso(),
-    'updated_at'  => nowIso(),
-];
-
-supabasePost('entitlements', $entitlementRow, ['Prefer: return=representation']);
-
-// Sincroniza com a Alloyal usando as credenciais da TKS
-$alloyalRes = alloyalSyncUser($cpf, $fullName);
+$liberarRes = liberarAcesso($profileId, $subscriptionDbId, $cpf, $fullName);
+$alloyalRes = ['ok' => $liberarRes['alloyal']['ok'] ?? false];
 
 // ============================================================
 // RETORNO: Responde 200 para a Iugu confirmar o recebimento
@@ -179,5 +164,6 @@ http_response_code(200);
 echo json_encode([
     'ok'              => true,
     'subscription_id' => $subscriptionDbId,
-    'alloyal_synced'  => $alloyalRes['ok'],
+    'alloyal_synced'  => $liberarRes['alloyal']['ok'] ?? false,
+    'skipped'         => $liberarRes['skipped'] ?? false,
 ]);

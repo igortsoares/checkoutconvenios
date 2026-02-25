@@ -51,6 +51,7 @@
  */
 
 require __DIR__ . '/config.php';
+require __DIR__ . '/liberar_acesso.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -352,35 +353,5 @@ if ($paymentUrl !== null) {
 
 echo json_encode($response);
 
-// ============================================================
-// FUNÇÃO: liberarAcesso
-// Cria o entitlement no banco e sincroniza com a Alloyal.
-// Chamada imediatamente após pagamento de cartão aprovado,
-// ou pelo webhook após confirmação de boleto/PIX.
-// ============================================================
-function liberarAcesso(string $profileId, string $subscriptionId, string $cpf, string $fullName): void
-{
-    // --- Cria o entitlement no banco ---
-    // O entitlement é a "prova" de que o usuário tem direito ao produto.
-    // expires_at: 1 ano a partir de hoje (ajuste conforme o plano)
-    $expiresAt = gmdate('Y-m-d\TH:i:s\Z', strtotime('+1 year'));
-
-    $entitlementRow = [
-        'id'          => generateUuid(),
-        'profile_id'  => $profileId,       // Usuário físico (FK → profiles)
-        'product_id'  => PRODUCT_ID_CLUBE, // Clube de Vantagens
-        'source_type' => 'subscription',
-        'source_id'   => $subscriptionId,
-        'status'      => 'active',
-        'expires_at'  => $expiresAt,
-        'created_at'  => nowIso(),
-        'updated_at'  => nowIso(),
-    ];
-
-    supabasePost('entitlements', $entitlementRow, ['Prefer: return=representation']);
-
-    // --- Sincroniza com a Alloyal (Clube de Vantagens) ---
-    // Cadastra o usuário na plataforma do fornecedor usando as
-    // credenciais fixas da TKS Vantagens.
-    alloyalSyncUser($cpf, $fullName);
-}
+// A função liberarAcesso() está centralizada em /api/liberar_acesso.php
+// e é compartilhada com webhook_iugu.php e verificar_pendentes.php.
