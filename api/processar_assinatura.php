@@ -1,52 +1,17 @@
 <?php
-
 /**
  * ============================================================
  * ARQUIVO: /api/processar_assinatura.php
  * MÉTODO:  POST
  * CONTENT-TYPE: application/json
  *
- * DESCRIÇÃO:
- *  Este é o coração do checkout. Recebe os dados do formulário
- *  e orquestra todo o fluxo de pagamento de ponta a ponta,
- *  SEM depender de ferramentas externas como N8N.
- *
- * PAYLOAD ESPERADO (JSON):
- *  {
- *    "cpf":                  "000.000.000-00",
- *    "full_name":            "Nome Completo",
- *    "email":                "email@exemplo.com",
- *    "phone":                "61999999999",
- *    "birth_date":           "1990-01-15",
- *    "iugu_plan_identifier": "plano_conter_mensal",
- *    "plan_id":              "uuid-do-plano-no-banco",
- *    "payment_method":       "credit_card" | "bank_slip" | "pix",
- *    "profile_id":           "uuid-do-perfil" (opcional, se já existe),
- *    "company_id":           "uuid-da-empresa" (opcional, se convênio),
- *
- *    // Apenas para credit_card:
- *    "card_token":           "token-gerado-pelo-iugu-js"
- *  }
- *
- * FLUXO INTERNO:
- *  1. Valida os dados recebidos
- *  2. Cria ou atualiza o perfil do usuário no banco (tabela profiles)
- *  3. Cria ou busca o cliente na Iugu
- *  4. Cria a assinatura na Iugu usando o iugu_plan_identifier
- *  5. Processa o pagamento (cartão, boleto ou PIX)
- *  6. Registra a assinatura no banco (tabela subscriptions)
- *  7. Se pagamento aprovado imediatamente (cartão):
- *     → Cria o entitlement no banco (tabela entitlements)
- *     → Sincroniza o usuário com a Alloyal (Clube de Vantagens)
- *  8. Se pagamento pendente (boleto/PIX):
- *     → Retorna a URL/QR Code para o frontend exibir
- *     → A liberação ocorrerá via webhook (/api/webhook_iugu.php)
- *
- * RETORNO:
- *  - success: bool
- *  - payment_status: "paid" | "pending" | "failed"
- *  - payment_url: string (para boleto/PIX)
- *  - message: string
+ * CORREÇÕES APLICADAS:
+ * - Corrige ordem: define $iuguCustomerId ANTES de usar
+ * - Para cartão: cria Payment Method no cliente (customers/{id}/payment_methods)
+ * - Para cartão: cria assinatura com customer_payment_method_id correto
+ * - Para cartão: se invoice veio pendente, chama /charge e reconsulta invoice
+ * - Garante variáveis ($invoiceStatus, $paymentUrl etc.) sempre definidas
+ * - Mantém fluxo atual de gravação no Supabase + liberarAcesso()
  * ============================================================
  */
 
@@ -61,7 +26,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// --- Leitura e decodificação do corpo da requisição ---
 $rawBody = file_get_contents('php://input');
 $body    = json_decode($rawBody ?? '', true);
 
@@ -83,37 +47,32 @@ foreach ($required as $field) {
     }
 }
 
-// Extração e limpeza dos dados
 $cpfDigits          = onlyDigits($body['cpf']);
 $fullName           = trim($body['full_name']);
 $email              = trim($body['email']);
 $phone              = onlyDigits($body['phone']);
-$birthDate          = trim($body['birth_date']); // Formato: YYYY-MM-DD
+$birthDate          = trim($body['birth_date']);
 $iuguPlanIdentifier = trim($body['iugu_plan_identifier']);
 $planId             = trim($body['plan_id']);
-$paymentMethod      = trim($body['payment_method']); // credit_card | bank_slip | pix
+$paymentMethod      = trim($body['payment_method']);
 $profileId          = trim($body['profile_id'] ?? '');
 $companyId          = trim($body['company_id'] ?? '');
-$cardToken          = trim($body['card_token'] ?? ''); // Apenas para cartão
+$cardToken          = trim($body['card_token'] ?? '');
 
-// Validação do método de pagamento
-if (!in_array($paymentMethod, ['credit_card', 'bank_slip', 'pix'])) {
+if (!in_array($paymentMethod, ['credit_card', 'bank_slip', 'pix'], true)) {
     http_response_code(400);
     echo json_encode(['error' => 'Método de pagamento inválido. Use: credit_card, bank_slip ou pix.']);
     exit;
 }
 
-// Validação do token de cartão (obrigatório apenas para credit_card)
-if ($paymentMethod === 'credit_card' && empty($cardToken)) {
+if ($paymentMethod === 'credit_card' && $cardToken === '') {
     http_response_code(400);
     echo json_encode(['error' => 'Token do cartão (card_token) é obrigatório para pagamento com cartão.']);
     exit;
 }
 
 // ============================================================
-// PASSO 2: Criar ou atualizar o perfil do usuário no banco
-// Se o profile_id foi passado (usuário já existe), fazemos PATCH.
-// Se não foi passado (usuário novo), fazemos INSERT.
+// PASSO 2: Criar/atualizar perfil no Supabase
 // ============================================================
 $profileData = [
     'full_name'      => $fullName,
@@ -125,20 +84,20 @@ $profileData = [
 ];
 
 if ($profileId !== '') {
-    // Usuário existente: atualiza os dados
     $profileRes = supabasePatch(
         "profiles?id=eq." . rawurlencode($profileId),
         $profileData
     );
 } else {
-    // Usuário novo: cria o perfil
     $profileData['id']         = generateUuid();
     $profileData['created_at'] = nowIso();
+
     $profileRes = supabasePost(
         "profiles",
         $profileData,
         ['Prefer: return=representation']
     );
+
     if ($profileRes['ok'] && !empty($profileRes['data'][0]['id'])) {
         $profileId = $profileRes['data'][0]['id'];
     }
@@ -150,30 +109,26 @@ if (!$profileRes['ok']) {
     exit;
 }
 
-// Se o profileId ainda não foi definido (caso de update), garante que temos o ID
 if ($profileId === '' && !empty($profileData['id'])) {
     $profileId = $profileData['id'];
 }
 
-$phoneDigits = onlyDigits($body['phone']); // ex: 61999908491
-
-$ddd = substr($phoneDigits, 0, 2);
-$number = substr($phoneDigits, 2); // resto (deve ficar com 9 dígitos p/ celular)
+// valida telefone p/ Iugu (DDD + 9 dígitos)
+$phoneDigits = onlyDigits($body['phone']);
+$ddd         = substr($phoneDigits, 0, 2);
+$number      = substr($phoneDigits, 2);
 
 if (strlen($ddd) !== 2 || strlen($number) !== 9) {
     http_response_code(400);
     echo json_encode([
-        'error' => 'Telefone inválido. Envie no padrão DDD + número (11 dígitos), ex: 61999908491.',
+        'error'   => 'Telefone inválido. Envie no padrão DDD + número (11 dígitos), ex: 61999908491.',
         'details' => ['ddd' => $ddd, 'number' => $number, 'len' => strlen($phoneDigits)]
     ]);
     exit;
 }
 
-
 // ============================================================
-// PASSO 3: Criar ou buscar o cliente na Iugu
-// A Iugu identifica clientes por e-mail. Tentamos criar;
-// se já existir, a Iugu retorna o cliente existente.
+// PASSO 3: Criar cliente na Iugu e DEFINIR $iuguCustomerId
 // ============================================================
 $iuguCustomerPayload = [
     'email'        => $email,
@@ -197,20 +152,46 @@ if (!$iuguCustomerRes['ok'] || empty($iuguCustomerRes['data']['id'])) {
 $iuguCustomerId = $iuguCustomerRes['data']['id'];
 
 // ============================================================
-// PASSO 4: Criar a assinatura na Iugu
-// Usamos o iugu_plan_identifier para vincular ao plano correto.
-// A assinatura na Iugu é o contrato recorrente de cobrança.
+// PASSO 3.1: Para cartão -> criar payment method no cliente
+// ============================================================
+$customerPaymentMethodId = null;
+
+if ($paymentMethod === 'credit_card') {
+    $pmRes = iuguCall(
+        'POST',
+        "customers/{$iuguCustomerId}/payment_methods",
+        [
+            'description'    => 'Cartão principal',
+            'token'          => $cardToken,  // token vindo do Iugu.js
+            'set_as_default' => true
+        ]
+    );
+
+    if (!$pmRes['ok'] || empty($pmRes['data']['id'])) {
+        http_response_code(502);
+        echo json_encode([
+            'error'   => 'Erro ao criar forma de pagamento (cartão) na Iugu.',
+            'details' => $pmRes['data'],
+        ]);
+        exit;
+    }
+
+    $customerPaymentMethodId = $pmRes['data']['id'];
+}
+
+// ============================================================
+// PASSO 4: Criar assinatura na Iugu
 // ============================================================
 $iuguSubscriptionPayload = [
-    'plan_identifier'  => $iuguPlanIdentifier,
-    'customer_id'      => $iuguCustomerId,
-    'payable_with'     => $paymentMethod,
-    'only_on_charge_success' => false, // Cria a assinatura mesmo se a 1ª cobrança falhar
+    'plan_identifier'         => $iuguPlanIdentifier,
+    'customer_id'             => $iuguCustomerId,
+    'payable_with'            => $paymentMethod,
+    'only_on_charge_success'  => false,
 ];
 
-// Para cartão de crédito, adiciona o token do cartão
 if ($paymentMethod === 'credit_card') {
-    $iuguSubscriptionPayload['customer_payment_method_id'] = $cardToken;
+    // IMPORTANTE: aqui é o ID do payment_method criado no cliente
+    $iuguSubscriptionPayload['customer_payment_method_id'] = $customerPaymentMethodId;
 }
 
 $iuguSubscriptionRes = iuguCall('POST', 'subscriptions', $iuguSubscriptionPayload);
@@ -224,64 +205,78 @@ if (!$iuguSubscriptionRes['ok'] || empty($iuguSubscriptionRes['data']['id'])) {
     exit;
 }
 
-$iuguSubscriptionId = $iuguSubscriptionRes['data']['id'];
+$iuguSubscriptionId   = $iuguSubscriptionRes['data']['id'];
 $iuguSubscriptionData = $iuguSubscriptionRes['data'];
 
 // ============================================================
-// PASSO 5: Determinar o status do pagamento
-// Para cartão: a Iugu retorna o status imediatamente.
-// Para boleto/PIX: o status será "pending" e uma URL é gerada.
+// PASSO 5: Ler invoice recente e determinar pagamento
+// (Cartão: se não pagar sozinho, força /charge e reconsulta)
 // ============================================================
-$paymentStatus = 'pending'; // Padrão: pendente
+$paymentStatus = 'pending';
 $paymentUrl    = null;
 $invoiceId     = null;
+$invoiceStatus = 'pending';
 
-// A Iugu retorna a fatura recente dentro da assinatura
 $recentInvoice = $iuguSubscriptionData['recent_invoices'][0] ?? null;
 
 if ($recentInvoice) {
     $invoiceId     = $recentInvoice['id'] ?? null;
     $invoiceStatus = $recentInvoice['status'] ?? 'pending';
 
+    // Para boleto/pix: já captura URL
+    $paymentUrl = $recentInvoice['secure_url'] ?? $iuguSubscriptionData['secure_url'] ?? null;
+
+    // ✅ Cartão: se veio invoice e não está paga, força cobrança
+    if ($paymentMethod === 'credit_card' && !empty($invoiceId) && $invoiceStatus !== 'paid') {
+
+        // OBS: alguns fluxos aceitam só invoice_id + pm_id,
+        // mas aqui mantemos completo (igual seu exemplo)
+        $chargeRes = iuguCall('POST', 'charge', [
+            'customer_id'                 => $iuguCustomerId,
+            'customer_payment_method_id'  => $customerPaymentMethodId,
+            'invoice_id'                  => $invoiceId,
+        ]);
+
+        if (!$chargeRes['ok']) {
+            $invoiceStatus = 'failed';
+        } else {
+            // Reconsulta fatura para pegar status real
+            $invRes = iuguCall('GET', "invoices/{$invoiceId}", []);
+            if ($invRes['ok'] && !empty($invRes['data']['status'])) {
+                $invoiceStatus = $invRes['data']['status'];
+            }
+        }
+    }
+
     if ($invoiceStatus === 'paid') {
         $paymentStatus = 'paid';
-    } elseif (in_array($invoiceStatus, ['pending', 'in_analysis'])) {
+    } elseif (in_array($invoiceStatus, ['pending', 'in_analysis'], true)) {
         $paymentStatus = 'pending';
-        // URL para boleto ou PIX
-        $paymentUrl = $recentInvoice['secure_url'] ?? $iuguSubscriptionData['secure_url'] ?? null;
     } else {
         $paymentStatus = 'failed';
     }
-} elseif ($paymentMethod === 'credit_card') {
-    // Para cartão sem fatura retornada, verifica o status da assinatura
-    $subStatus = $iuguSubscriptionData['active'] ?? false;
-    $paymentStatus = $subStatus ? 'paid' : 'pending';
+} else {
+    // Se não veio invoice (raro), decide pelo "active" da assinatura
+    if ($paymentMethod === 'credit_card') {
+        $paymentStatus = !empty($iuguSubscriptionData['active']) ? 'paid' : 'pending';
+    } else {
+        $paymentStatus = 'pending';
+    }
 }
 
 // ============================================================
-// PASSO 6: Registrar a assinatura no nosso banco de dados
-// Tabela: subscriptions
-// Campos gravados:
-//   - profile_id      → o usuário físico que assinou (FK → profiles)
-//   - account_id      → a conta B2B/B2C vinculada (FK → accounts)
-//   - iugu_customer_id → ID do cliente na Iugu (para consultas cruzadas)
-//   - payment_method  → credit_card | bank_slip | pix
-//   - updated_at      → data da última atualização de status
-// Status inicial: "active" (cartão aprovado) ou "pending_payment"
+// PASSO 6: Registrar assinatura no Supabase (subscriptions)
 // ============================================================
 $dbSubscriptionStatus = ($paymentStatus === 'paid') ? 'active' : 'pending_payment';
 
-// Busca o account_id da conta vinculada ao profile (B2C ou B2B via company)
 $accountId = null;
 if ($companyId !== '') {
-    // Usuário de convênio: busca a conta B2B da empresa
     $accRes = supabaseGet(
         "accounts?company_id=eq." . rawurlencode($companyId) .
         "&type=eq.B2B&select=id&limit=1"
     );
     $accountId = $accRes['data'][0]['id'] ?? null;
 } else {
-    // Usuário B2C: busca a conta B2C vinculada ao profile
     $accRes = supabaseGet(
         "accounts?profile_id=eq." . rawurlencode($profileId) .
         "&type=eq.B2C&select=id&limit=1"
@@ -291,13 +286,13 @@ if ($companyId !== '') {
 
 $subscriptionRow = [
     'id'                   => generateUuid(),
-    'profile_id'           => $profileId,       // Usuário físico (PRINCIPAL)
-    'account_id'           => $accountId,       // Conta B2B ou B2C vinculada
+    'profile_id'           => $profileId,
+    'account_id'           => $accountId,
     'plan_id'              => $planId,
     'status'               => $dbSubscriptionStatus,
     'iugu_subscription_id' => $iuguSubscriptionId,
-    'iugu_customer_id'     => $iuguCustomerId,  // ID do cliente na Iugu
-    'payment_method'       => $paymentMethod,   // credit_card | bank_slip | pix
+    'iugu_customer_id'     => $iuguCustomerId,
+    'payment_method'       => $paymentMethod,
     'created_at'           => nowIso(),
     'updated_at'           => nowIso(),
 ];
@@ -311,47 +306,54 @@ $subscriptionRes = supabasePost(
 if (!$subscriptionRes['ok']) {
     http_response_code(500);
     echo json_encode([
-        'error' => 'Erro ao salvar assinatura na tabela subscriptions.',
+        'error'   => 'Erro ao salvar assinatura na tabela subscriptions.',
         'details' => $subscriptionRes['data'] ?? $subscriptionRes,
-        'debug' => [
+        'debug'   => [
             'account_id' => $accountId,
             'profile_id' => $profileId,
-            'plan_id' => $planId
+            'plan_id'    => $planId,
+            'iugu_customer_id' => $iuguCustomerId,
+            'iugu_subscription_id' => $iuguSubscriptionId,
         ]
     ]);
     exit;
 }
 
 $subscriptionDbId = $subscriptionRes['data'][0]['id'] ?? null;
+
 // ============================================================
-// PASSO 7: Se pagamento aprovado → Liberar acesso (entitlement)
-//          e sincronizar com a Alloyal
+// PASSO 7: Se pago -> liberar acesso
 // ============================================================
 if ($paymentStatus === 'paid') {
     liberarAcesso($profileId, $subscriptionDbId, $cpfDigits, $fullName);
 }
 
 // ============================================================
-// RETORNO FINAL PARA O FRONTEND
+// RETORNO FINAL
 // ============================================================
 $response = [
-    'success'        => ($paymentStatus !== 'failed'),
-    'payment_status' => $paymentStatus,
-    'message'        => match ($paymentStatus) {
+    'success'          => ($paymentStatus !== 'failed'),
+    'payment_status'   => $paymentStatus,
+    'message'          => match ($paymentStatus) {
         'paid'    => 'Pagamento aprovado! Seu acesso foi liberado.',
         'pending' => 'Aguardando confirmação do pagamento.',
         'failed'  => 'Pagamento recusado. Tente novamente.',
         default   => 'Status desconhecido.',
     },
-    'subscription_id' => $subscriptionDbId,
+    'subscription_id'  => $subscriptionDbId,
 ];
 
-// Para boleto/PIX, retorna a URL de pagamento
-if ($paymentUrl !== null) {
+// Para boleto/PIX, retorna URL (e também pode retornar em cartão se ficar pendente)
+if (!empty($paymentUrl)) {
     $response['payment_url'] = $paymentUrl;
 }
 
-echo json_encode($response);
+// (opcional) debug rápido em dev:
+// $response['debug'] = [
+//     'invoice_id' => $invoiceId,
+//     'invoice_status' => $invoiceStatus,
+//     'iugu_customer_id' => $iuguCustomerId,
+//     'customer_payment_method_id' => $customerPaymentMethodId,
+// ];
 
-// A função liberarAcesso() está centralizada em /api/liberar_acesso.php
-// e é compartilhada com webhook_iugu.php e verificar_pendentes.php.
+echo json_encode($response);

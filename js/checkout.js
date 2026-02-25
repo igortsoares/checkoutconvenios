@@ -19,21 +19,21 @@
 // ============================================================
 const state = {
     // Etapa 1: CPF
-    cpf:          '',
-    profileId:    null,   // UUID do perfil no banco (se já existir)
-    companyId:    null,   // UUID da empresa parceira (se for convênio)
-    companyName:  null,
-    planType:     'b2c',  // "convenio" ou "b2c"
-    isNewUser:    true,
+    cpf: '',
+    profileId: null,   // UUID do perfil no banco (se já existir)
+    companyId: null,   // UUID da empresa parceira (se for convênio)
+    companyName: null,
+    planType: 'b2c',  // "convenio" ou "b2c"
+    isNewUser: true,
 
     // Etapa 2: Plano
     selectedPlan: null,   // Objeto com id, name, price_formatted, iugu_plan_identifier
 
     // Etapa 3: Dados Pessoais
-    fullName:     '',
-    email:        '',
-    phone:        '',
-    birthDate:    '',
+    fullName: '',
+    email: '',
+    phone: '',
+    birthDate: '',
 
     // Etapa 4: Pagamento
     paymentMethod: null,  // "credit_card" | "bank_slip" | "pix"
@@ -93,6 +93,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Escape') closeTermsModal();
     });
 
+    // Garante que a Iugu está configurada (evita "AccountID inválido")
+    if (window.Iugu && typeof Iugu.setAccountID === 'function') {
+        Iugu.setAccountID(window.IUGU_ACCOUNT_ID || "B07088D648D048B3B450CCB6B5371BD3");
+        Iugu.setTestMode(!!window.IUGU_TEST_MODE);
+    }
     // Limpa o erro inline ao editar os campos da Etapa 3
     ['input-nome', 'input-email', 'input-telefone', 'input-nascimento'].forEach(id => {
         document.getElementById(id)?.addEventListener('input', () => clearFieldError(id));
@@ -123,25 +128,25 @@ function goToStep(step) {
  */
 function updateProgressIndicator(activeStep) {
     for (let i = 1; i <= 4; i++) {
-        const item   = document.querySelector(`[data-step="${i}"]`);
+        const item = document.querySelector(`[data-step="${i}"]`);
         if (!item) continue;
         const circle = item.querySelector('.step-circle');
-        const label  = item.querySelector('span');
-        const line   = item.nextElementSibling;
+        const label = item.querySelector('span');
+        const line = item.nextElementSibling;
 
         if (i < activeStep) {
-            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 completed';
-            circle.innerHTML   = '<i class="fas fa-check text-xs"></i>';
-            label.className    = 'text-xs mt-1 text-green-600 font-semibold';
+            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 completed';
+            circle.innerHTML = '<i class="fas fa-check text-xs"></i>';
+            label.className = 'text-xs mt-1 text-green-600 font-semibold';
             if (line && line.classList.contains('step-line')) line.classList.add('active');
         } else if (i === activeStep) {
-            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 active';
+            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 active';
             circle.textContent = i;
-            label.className    = 'text-xs mt-1 text-tks-primary font-semibold';
+            label.className = 'text-xs mt-1 text-tks-primary font-semibold';
         } else {
-            circle.className   = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400';
+            circle.className = 'step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400';
             circle.textContent = i;
-            label.className    = 'text-xs mt-1 text-slate-400';
+            label.className = 'text-xs mt-1 text-slate-400';
         }
     }
 }
@@ -231,8 +236,8 @@ function validarTelefone(phone) {
         return { valid: false, message: 'Telefone inválido. Número muito longo.' };
     }
 
-    const ddd    = parseInt(digits.substring(0, 2));
-    const nono   = digits[2]; // O 3º dígito deve ser 9 para celular
+    const ddd = parseInt(digits.substring(0, 2));
+    const nono = digits[2]; // O 3º dígito deve ser 9 para celular
 
     // DDD válido: entre 11 e 99
     if (ddd < 11 || ddd > 99) {
@@ -264,7 +269,7 @@ function validarDataNascimento(birthDate) {
     }
 
     const nascimento = new Date(birthDate);
-    const hoje       = new Date();
+    const hoje = new Date();
 
     // Verifica se é uma data válida
     if (isNaN(nascimento.getTime())) {
@@ -278,10 +283,10 @@ function validarDataNascimento(birthDate) {
 
     // Calcula a idade exata (considerando mês e dia)
     let idade = hoje.getFullYear() - nascimento.getFullYear();
-    const mesAtual  = hoje.getMonth();
-    const diaAtual  = hoje.getDate();
-    const mesNasc   = nascimento.getMonth();
-    const diaNasc   = nascimento.getDate();
+    const mesAtual = hoje.getMonth();
+    const diaAtual = hoje.getDate();
+    const mesNasc = nascimento.getMonth();
+    const diaNasc = nascimento.getDate();
 
     // Se ainda não fez aniversário este ano, subtrai 1
     if (mesAtual < mesNasc || (mesAtual === mesNasc && diaAtual < diaNasc)) {
@@ -320,7 +325,7 @@ function showFieldError(fieldId, message) {
 
     // Cria o elemento de mensagem de erro abaixo do campo
     const errorEl = document.createElement('p');
-    errorEl.id        = `error-${fieldId}`;
+    errorEl.id = `error-${fieldId}`;
     errorEl.className = 'text-red-500 text-xs mt-1 flex items-center gap-1';
     errorEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
 
@@ -335,8 +340,8 @@ function showFieldError(fieldId, message) {
  * @param {string} fieldId - ID do campo HTML
  */
 function clearFieldError(fieldId) {
-    const field    = document.getElementById(fieldId);
-    const errorEl  = document.getElementById(`error-${fieldId}`);
+    const field = document.getElementById(fieldId);
+    const errorEl = document.getElementById(`error-${fieldId}`);
 
     if (field) {
         field.classList.remove('border-red-500', 'focus:ring-red-300');
@@ -360,7 +365,7 @@ function clearFieldError(fieldId) {
  */
 async function handleVerificarCpf() {
     const cpfInput = document.getElementById('input-cpf');
-    const cpfVal   = cpfInput.value;
+    const cpfVal = cpfInput.value;
     const cpfDigits = cpfVal.replace(/\D/g, '');
 
     // --- Validação 1: Tamanho ---
@@ -380,24 +385,24 @@ async function handleVerificarCpf() {
     setButtonLoading('btn-verificar-cpf', 'btn-verificar-text', 'btn-verificar-loader', 'btn-verificar-arrow', true);
 
     try {
-        const res  = await fetch(`api/verificar_cpf.php?cpf=${encodeURIComponent(cpfVal)}`);
+        const res = await fetch(`api/verificar_cpf.php?cpf=${encodeURIComponent(cpfVal)}`);
         const data = await res.json();
 
         if (data.error) throw new Error(data.error);
 
         // Salva os dados no estado global
-        state.cpf         = data.cpf || cpfDigits;
-        state.profileId   = data.profile_id || null;
-        state.companyId   = data.company_id || null;
+        state.cpf = data.cpf || cpfDigits;
+        state.profileId = data.profile_id || null;
+        state.companyId = data.company_id || null;
         state.companyName = data.company_name || null;
-        state.planType    = data.plan_type || 'b2c';
-        state.isNewUser   = data.is_new_user || false;
+        state.planType = data.plan_type || 'b2c';
+        state.isNewUser = data.is_new_user || false;
 
         // Pré-preenche dados pessoais se o usuário já existe no banco
         if (data.found && !data.is_new_user) {
-            if (data.full_name)  document.getElementById('input-nome').value       = data.full_name;
-            if (data.email)      document.getElementById('input-email').value      = data.email;
-            if (data.phone)      document.getElementById('input-telefone').value   = formatPhone(data.phone);
+            if (data.full_name) document.getElementById('input-nome').value = data.full_name;
+            if (data.email) document.getElementById('input-email').value = data.email;
+            if (data.phone) document.getElementById('input-telefone').value = formatPhone(data.phone);
             if (data.birth_date) document.getElementById('input-nascimento').value = data.birth_date;
         }
 
@@ -432,8 +437,8 @@ async function handleVerificarCpf() {
  */
 async function carregarPlanos() {
     const container = document.getElementById('planos-container');
-    const loader    = document.getElementById('planos-loader');
-    const subtitle  = document.getElementById('planos-subtitle');
+    const loader = document.getElementById('planos-loader');
+    const subtitle = document.getElementById('planos-subtitle');
 
     loader.classList.remove('hidden');
 
@@ -441,7 +446,7 @@ async function carregarPlanos() {
     if (state.companyId) url += `&company_id=${encodeURIComponent(state.companyId)}`;
 
     try {
-        const res  = await fetch(url);
+        const res = await fetch(url);
         const data = await res.json();
 
         loader.classList.add('hidden');
@@ -461,9 +466,9 @@ async function carregarPlanos() {
         data.plans.forEach(plan => {
             const card = document.createElement('div');
             card.className = 'plan-card';
-            card.dataset.planId         = plan.id;
-            card.dataset.planName       = plan.name;
-            card.dataset.planPrice      = plan.price_formatted;
+            card.dataset.planId = plan.id;
+            card.dataset.planName = plan.name;
+            card.dataset.planPrice = plan.price_formatted;
             card.dataset.planIdentifier = plan.iugu_plan_identifier;
 
             card.innerHTML = `
@@ -516,9 +521,9 @@ function selectPlan(cardEl, plan) {
  * Só avança se TODOS os campos estiverem válidos.
  */
 function handleConfirmarDados() {
-    const nome       = document.getElementById('input-nome').value.trim();
-    const email      = document.getElementById('input-email').value.trim();
-    const telefone   = document.getElementById('input-telefone').value.trim();
+    const nome = document.getElementById('input-nome').value.trim();
+    const email = document.getElementById('input-email').value.trim();
+    const telefone = document.getElementById('input-telefone').value.trim();
     const nascimento = document.getElementById('input-nascimento').value.trim();
 
     // Limpa todos os erros anteriores
@@ -565,13 +570,13 @@ function handleConfirmarDados() {
     }
 
     // Todos os campos válidos — salva no estado e avança
-    state.fullName  = nome;
-    state.email     = email;
-    state.phone     = telefone.replace(/\D/g, '');
+    state.fullName = nome;
+    state.email = email;
+    state.phone = telefone.replace(/\D/g, '');
     state.birthDate = nascimento;
 
     // Preenche o resumo na etapa de pagamento
-    document.getElementById('resumo-plano-nome').textContent  = state.selectedPlan?.name || '—';
+    document.getElementById('resumo-plano-nome').textContent = state.selectedPlan?.name || '—';
     document.getElementById('resumo-plano-preco').textContent = state.selectedPlan?.price_formatted || '—';
 
     goToStep(4);
@@ -591,9 +596,9 @@ function selectPaymentMethod(method) {
         btn.classList.toggle('selected', btn.dataset.method === method);
     });
 
-    const formCartao   = document.getElementById('form-cartao');
-    const avisoBoleto  = document.getElementById('aviso-boleto-pix');
-    const avisoText    = document.getElementById('aviso-boleto-pix-text');
+    const formCartao = document.getElementById('form-cartao');
+    const avisoBoleto = document.getElementById('aviso-boleto-pix');
+    const avisoText = document.getElementById('aviso-boleto-pix-text');
 
     if (method === 'credit_card') {
         formCartao.classList.remove('hidden');
@@ -620,7 +625,7 @@ async function handleFinalizar() {
     }
 
     // Valida aceite dos Termos e Condições
-    const chkTermos  = document.getElementById('chk-termos');
+    const chkTermos = document.getElementById('chk-termos');
     const erroTermos = document.getElementById('erro-termos');
     if (!chkTermos || !chkTermos.checked) {
         erroTermos?.classList.remove('hidden');
@@ -647,25 +652,25 @@ async function handleFinalizar() {
 
         // --- Monta o payload para a API ---
         const payload = {
-            cpf:                  state.cpf,
-            full_name:            state.fullName,
-            email:                state.email,
-            phone:                state.phone,
-            birth_date:           state.birthDate,
+            cpf: state.cpf,
+            full_name: state.fullName,
+            email: state.email,
+            phone: state.phone,
+            birth_date: state.birthDate,
             iugu_plan_identifier: state.selectedPlan.iugu_plan_identifier,
-            plan_id:              state.selectedPlan.id,
-            payment_method:       state.paymentMethod,
+            plan_id: state.selectedPlan.id,
+            payment_method: state.paymentMethod,
         };
 
         if (state.profileId) payload.profile_id = state.profileId;
-        if (state.companyId) payload.company_id  = state.companyId;
-        if (cardToken)       payload.card_token   = cardToken;
+        if (state.companyId) payload.company_id = state.companyId;
+        if (cardToken) payload.card_token = cardToken;
 
         // --- Envia para a API de processamento ---
-        const res  = await fetch('api/processar_assinatura.php', {
-            method:  'POST',
+        const res = await fetch('api/processar_assinatura.php', {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify(payload),
+            body: JSON.stringify(payload),
         });
 
         const data = await res.json();
@@ -697,9 +702,9 @@ async function handleFinalizar() {
 function tokenizarCartao() {
     return new Promise((resolve) => {
         const number = document.getElementById('input-card-number').value.replace(/\s/g, '');
-        const name   = document.getElementById('input-card-name').value.trim();
+        const name = document.getElementById('input-card-name').value.trim();
         const expiry = document.getElementById('input-card-expiry').value;
-        const cvv    = document.getElementById('input-card-cvv').value.trim();
+        const cvv = document.getElementById('input-card-cvv').value.trim();
 
         if (!number || !name || !expiry || !cvv) {
             showError('Por favor, preencha todos os dados do cartão.');
@@ -710,12 +715,12 @@ function tokenizarCartao() {
         const [expMonth, expYear] = expiry.split('/');
 
         Iugu.createPaymentToken({
-            number:             number,
+            number: number,
             verification_value: cvv,
-            first_name:         name.split(' ')[0],
-            last_name:          name.split(' ').slice(1).join(' '),
-            month:              expMonth,
-            year:               '20' + expYear,
+            first_name: name.split(' ')[0],
+            last_name: name.split(' ').slice(1).join(' '),
+            month: expMonth,
+            year: '20' + expYear,
         }, (response) => {
             if (response.errors) {
                 showError('Dados do cartão inválidos: ' + Object.values(response.errors).join(', '));
@@ -761,7 +766,7 @@ function showError(message) {
     document.getElementById('toast-error')?.remove();
 
     const toast = document.createElement('div');
-    toast.id        = 'toast-error';
+    toast.id = 'toast-error';
     toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2';
     toast.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
     document.body.appendChild(toast);
@@ -771,16 +776,16 @@ function showError(message) {
 
 /** Ativa/desativa o estado de loading de um botão. */
 function setButtonLoading(btnId, textId, loaderId, iconId, isLoading) {
-    const btn    = document.getElementById(btnId);
-    const text   = document.getElementById(textId);
+    const btn = document.getElementById(btnId);
+    const text = document.getElementById(textId);
     const loader = document.getElementById(loaderId);
-    const icon   = document.getElementById(iconId);
+    const icon = document.getElementById(iconId);
 
     if (!btn) return;
     btn.disabled = isLoading;
-    if (text)   text.textContent = isLoading ? 'Aguarde...' : (text.dataset.original || text.textContent);
+    if (text) text.textContent = isLoading ? 'Aguarde...' : (text.dataset.original || text.textContent);
     if (loader) loader.classList.toggle('hidden', !isLoading);
-    if (icon)   icon.classList.toggle('hidden', isLoading);
+    if (icon) icon.classList.toggle('hidden', isLoading);
 }
 
 /** Máscara de CPF: 000.000.000-00 */
@@ -803,8 +808,8 @@ function maskPhone(e) {
 /** Formata um telefone de dígitos para o padrão com máscara. */
 function formatPhone(digits) {
     const d = digits.replace(/\D/g, '');
-    if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
-    if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
     return digits;
 }
 
@@ -864,7 +869,7 @@ function acceptTermsFromModal() {
  * Atualiza a visibilidade do erro e habilita/desabilita o botão finalizar.
  */
 function onTermsChange() {
-    const chk       = document.getElementById('chk-termos');
+    const chk = document.getElementById('chk-termos');
     const erroTermos = document.getElementById('erro-termos');
     if (chk.checked) {
         erroTermos.classList.add('hidden');
@@ -878,8 +883,8 @@ function onTermsChange() {
  *  - O checkbox de termos está marcado.
  */
 function updateFinalizarButton() {
-    const chk    = document.getElementById('chk-termos');
-    const btn    = document.getElementById('btn-finalizar');
+    const chk = document.getElementById('chk-termos');
+    const btn = document.getElementById('btn-finalizar');
     if (!btn) return;
     btn.disabled = !(state.paymentMethod && chk && chk.checked);
 }

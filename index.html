@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,43 +23,58 @@
 
     <!-- SDK da Iugu (tokenização de cartão no frontend) -->
     <!-- IMPORTANTE: Substitua "SEU_ACCOUNT_ID_IUGU" pelo Account ID real da sua conta Iugu -->
-    <script src="https://js.iugu.com/v2" data-iugu-account-id="SEU_ACCOUNT_ID_IUGU"></script>
+    <script src="https://js.iugu.com/v2" data-iugu-account-id="B07088D648D048B3B450CCB6B5371BD3"></script>
+    <script>
+        window.IUGU_ACCOUNT_ID = "B07088D648D048B3B450CCB6B5371BD3";
+        window.IUGU_TEST_MODE = false; // true se for sandbox
+    </script>
 </head>
 
 <body class="min-h-screen bg-slate-50 font-sora text-slate-800 flex flex-col items-center justify-center p-4">
 
     <!-- Fundo decorativo -->
-    <div class="fixed top-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-tks-primary/5 rounded-full blur-[120px] pointer-events-none z-0"></div>
-    <div class="fixed bottom-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-blue-100/40 rounded-full blur-[120px] pointer-events-none z-0"></div>
+    <div
+        class="fixed top-[-20%] right-[-10%] w-[50vw] h-[50vw] bg-tks-primary/5 rounded-full blur-[120px] pointer-events-none z-0">
+    </div>
+    <div
+        class="fixed bottom-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-blue-100/40 rounded-full blur-[120px] pointer-events-none z-0">
+    </div>
 
     <main class="w-full max-w-lg relative z-10">
 
         <!-- Logo -->
         <div class="flex justify-center mb-8">
             <img src="https://api.tksvantagens.com.br/storage/v1/object/public/emailmkt//logonova.png"
-                 alt="TKS Vantagens"
-                 class="h-14 w-auto object-contain">
+                alt="TKS Vantagens" class="h-14 w-auto object-contain">
         </div>
 
         <!-- Indicador de progresso (4 etapas) -->
         <div class="flex items-center justify-center mb-8 gap-2" id="progress-steps">
             <div class="step-item flex flex-col items-center" data-step="1">
-                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-tks-primary bg-tks-primary text-white">1</div>
+                <div
+                    class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-tks-primary bg-tks-primary text-white">
+                    1</div>
                 <span class="text-xs mt-1 text-tks-primary font-semibold">CPF</span>
             </div>
             <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
             <div class="step-item flex flex-col items-center" data-step="2">
-                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">2</div>
+                <div
+                    class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">
+                    2</div>
                 <span class="text-xs mt-1 text-slate-400">Plano</span>
             </div>
             <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
             <div class="step-item flex flex-col items-center" data-step="3">
-                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">3</div>
+                <div
+                    class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">
+                    3</div>
                 <span class="text-xs mt-1 text-slate-400">Dados</span>
             </div>
             <div class="step-line flex-1 h-0.5 bg-slate-200 max-w-[60px]"></div>
             <div class="step-item flex flex-col items-center" data-step="4">
-                <div class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">4</div>
+                <div
+                    class="step-circle w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border-2 border-slate-200 bg-white text-slate-400">
+                    4</div>
                 <span class="text-xs mt-1 text-slate-400">Pagamento</span>
             </div>
         </div>
@@ -74,16 +90,18 @@
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CPF do Titular</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CPF do
+                        Titular</label>
                     <div class="relative">
                         <i class="fas fa-id-card absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 text-lg"></i>
                         <input type="text" id="input-cpf" placeholder="000.000.000-00" maxlength="14"
-                               class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all text-lg font-medium">
+                            class="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all text-lg font-medium">
                     </div>
                 </div>
 
                 <!-- Badge de convênio (aparece quando CPF é de convênio) -->
-                <div id="badge-convenio" class="hidden items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <div id="badge-convenio"
+                    class="hidden items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                     <i class="fas fa-building text-green-600"></i>
                     <div>
                         <p class="text-xs font-bold text-green-700 uppercase tracking-wide">Convênio Identificado</p>
@@ -93,7 +111,7 @@
                 </div>
 
                 <button id="btn-verificar-cpf"
-                        class="w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 flex justify-center items-center gap-2">
+                    class="w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 flex justify-center items-center gap-2">
                     <span id="btn-verificar-text">Continuar</span>
                     <i class="fas fa-arrow-right text-xs opacity-70" id="btn-verificar-arrow"></i>
                     <i class="fas fa-circle-notch fa-spin hidden" id="btn-verificar-loader"></i>
@@ -120,12 +138,13 @@
             </div>
 
             <div class="flex gap-3">
-                <button onclick="goToStep(1)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                <button onclick="goToStep(1)"
+                    class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
                     <i class="fas fa-arrow-left mr-1"></i> Voltar
                 </button>
                 <button id="btn-selecionar-plano"
-                        class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled>
+                    class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
                     Continuar <i class="fas fa-arrow-right ml-1 text-xs opacity-70"></i>
                 </button>
             </div>
@@ -142,35 +161,40 @@
 
             <div class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome Completo *</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome Completo
+                        *</label>
                     <input type="text" id="input-nome" placeholder="Seu nome completo"
-                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                        class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">E-mail *</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">E-mail
+                        *</label>
                     <input type="email" id="input-email" placeholder="seu@email.com"
-                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                        class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Telefone *</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Telefone
+                            *</label>
                         <input type="text" id="input-telefone" placeholder="(61) 99999-9999" maxlength="15"
-                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                            class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nascimento *</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nascimento
+                            *</label>
                         <input type="date" id="input-nascimento"
-                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                            class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                     </div>
                 </div>
             </div>
 
             <div class="flex gap-3 mt-6">
-                <button onclick="goToStep(2)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                <button onclick="goToStep(2)"
+                    class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
                     <i class="fas fa-arrow-left mr-1"></i> Voltar
                 </button>
                 <button id="btn-confirmar-dados"
-                        class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
+                    class="flex-2 flex-grow py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
                     Continuar <i class="fas fa-arrow-right ml-1 text-xs opacity-70"></i>
                 </button>
             </div>
@@ -196,18 +220,21 @@
 
             <!-- Seleção do método de pagamento -->
             <div class="grid grid-cols-3 gap-3 mb-6">
-                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
-                        data-method="credit_card">
+                <button
+                    class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                    data-method="credit_card">
                     <i class="fas fa-credit-card text-lg"></i>
                     <span>Cartão</span>
                 </button>
-                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
-                        data-method="bank_slip">
+                <button
+                    class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                    data-method="bank_slip">
                     <i class="fas fa-barcode text-lg"></i>
                     <span>Boleto</span>
                 </button>
-                <button class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
-                        data-method="pix">
+                <button
+                    class="payment-method-btn py-3 rounded-xl border-2 border-slate-200 text-slate-500 text-sm font-semibold flex flex-col items-center gap-1 hover:border-tks-primary hover:text-tks-primary transition-all"
+                    data-method="pix">
                     <i class="fas fa-qrcode text-lg"></i>
                     <span>PIX</span>
                 </button>
@@ -216,45 +243,50 @@
             <!-- Formulário de Cartão de Crédito (visível apenas quando cartão selecionado) -->
             <div id="form-cartao" class="hidden space-y-4 mb-6">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Número do Cartão</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Número do
+                        Cartão</label>
                     <input type="text" id="input-card-number" placeholder="0000 0000 0000 0000" maxlength="19"
-                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all tracking-widest">
+                        class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all tracking-widest">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome no Cartão</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Nome no
+                        Cartão</label>
                     <input type="text" id="input-card-name" placeholder="NOME COMO NO CARTÃO"
-                           class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all uppercase">
+                        class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all uppercase">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Validade</label>
+                        <label
+                            class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Validade</label>
                         <input type="text" id="input-card-expiry" placeholder="MM/AA" maxlength="5"
-                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                            class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">CVV</label>
                         <input type="text" id="input-card-cvv" placeholder="000" maxlength="4"
-                               class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
+                            class="input-field w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-tks-primary/10 focus:border-tks-primary transition-all">
                     </div>
                 </div>
             </div>
 
             <!-- Aviso para Boleto/PIX -->
-            <div id="aviso-boleto-pix" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-700">
+            <div id="aviso-boleto-pix"
+                class="hidden bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-700">
                 <i class="fas fa-info-circle mr-2"></i>
-                <span id="aviso-boleto-pix-text">Após clicar em "Finalizar", você receberá o código para pagamento.</span>
+                <span id="aviso-boleto-pix-text">Após clicar em "Finalizar", você receberá o código para
+                    pagamento.</span>
             </div>
 
             <!-- Checkbox obrigatório de Termos e Condições -->
             <div class="mb-5">
                 <label class="flex items-start gap-3 cursor-pointer group">
-                    <input type="checkbox"
-                           id="chk-termos"
-                           class="mt-0.5 w-5 h-5 rounded border-2 border-slate-300 text-tks-primary accent-tks-primary cursor-pointer flex-shrink-0"
-                           onchange="onTermsChange()">
+                    <input type="checkbox" id="chk-termos"
+                        class="mt-0.5 w-5 h-5 rounded border-2 border-slate-300 text-tks-primary accent-tks-primary cursor-pointer flex-shrink-0"
+                        onchange="onTermsChange()">
                     <span class="text-sm text-slate-600 leading-relaxed">
                         Li e aceito os
-                        <a href="#" id="link-termos" class="text-tks-primary font-semibold underline hover:text-tks-dark transition-colors">
+                        <a href="#" id="link-termos"
+                            class="text-tks-primary font-semibold underline hover:text-tks-dark transition-colors">
                             Termos e Condições
                         </a>
                         de uso da TKS Vantagens.
@@ -267,12 +299,13 @@
             </div>
 
             <div class="flex gap-3">
-                <button onclick="goToStep(3)" class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
+                <button onclick="goToStep(3)"
+                    class="flex-1 py-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 font-semibold transition-all text-sm">
                     <i class="fas fa-arrow-left mr-1"></i> Voltar
                 </button>
                 <button id="btn-finalizar"
-                        class="flex-2 flex-grow py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        disabled>
+                    class="flex-2 flex-grow py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled>
                     <span id="btn-finalizar-text">Finalizar Assinatura</span>
                     <i class="fas fa-lock text-xs opacity-70" id="btn-finalizar-icon"></i>
                     <i class="fas fa-circle-notch fa-spin hidden" id="btn-finalizar-loader"></i>
@@ -293,9 +326,10 @@
                 <i class="fas fa-check-circle text-green-500 text-4xl"></i>
             </div>
             <h2 class="text-2xl font-bold text-slate-800 mb-2">Assinatura Confirmada!</h2>
-            <p class="text-slate-500 mb-6" id="success-message">Seu acesso ao Clube de Vantagens foi liberado com sucesso.</p>
+            <p class="text-slate-500 mb-6" id="success-message">Seu acesso ao Clube de Vantagens foi liberado com
+                sucesso.</p>
             <a href="https://app.tksvantagens.com.br/main" target="_blank"
-               class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
+                class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300">
                 <i class="fas fa-star mr-2"></i> Acessar o Clube de Vantagens
             </a>
         </div>
@@ -310,7 +344,7 @@
             <h2 class="text-2xl font-bold text-slate-800 mb-2">Aguardando Pagamento</h2>
             <p class="text-slate-500 mb-6">Seu acesso será liberado automaticamente após a confirmação do pagamento.</p>
             <a id="link-pagamento" href="#" target="_blank"
-               class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 mb-3">
+                class="inline-block w-full py-4 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark shadow-lg transition-all duration-300 mb-3">
                 <i class="fas fa-external-link-alt mr-2"></i> Abrir Boleto / PIX
             </a>
             <p class="text-xs text-slate-400">O link também foi enviado para o seu e-mail.</p>
@@ -328,8 +362,8 @@
          MODAL: TERMOS E CONDIÇÕES
     ====================================================== -->
     <div id="modal-termos"
-         class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-         role="dialog" aria-modal="true" aria-labelledby="modal-termos-titulo">
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog"
+        aria-modal="true" aria-labelledby="modal-termos-titulo">
 
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
 
@@ -340,43 +374,72 @@
                     Termos e Condições de Uso
                 </h2>
                 <button onclick="closeTermsModal()"
-                        class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+                    class="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
 
             <!-- Conteúdo com scroll -->
             <div class="overflow-y-auto px-6 py-5 text-sm text-slate-600 leading-relaxed space-y-4 flex-1">
-                <p>O uso da ficha de cadastro do aplicativo TKS Vantagens (&ldquo;Aplicativo&rdquo;) implica a aceitação integral deste Termo de Uso (&ldquo;Termo&rdquo;). Ao preencher a ficha de cadastro e utilizar o Aplicativo, o usuário declara ter lido, compreendido e concordado com todas as condições abaixo.</p>
+                <p>O uso da ficha de cadastro do aplicativo TKS Vantagens (&ldquo;Aplicativo&rdquo;) implica a aceitação
+                    integral deste Termo de Uso (&ldquo;Termo&rdquo;). Ao preencher a ficha de cadastro e utilizar o
+                    Aplicativo, o usuário declara ter lido, compreendido e concordado com todas as condições abaixo.</p>
 
                 <h3 class="font-bold text-slate-800 text-base">1. Coleta e Tratamento de Dados</h3>
-                <p><strong>1.1.</strong> O usuário reconhece que, ao preencher a ficha de cadastro, fornecerá dados pessoais &mdash; nome, endereço, e-mail, telefone, CPF, entre outros &mdash; que serão tratados pela TKS Vantagens em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei n.º 13.709/2018 &ndash; LGPD).</p>
-                <p><strong>1.2.</strong> A TKS Vantagens compromete-se a tratar esses dados com segurança e confidencialidade, adotando medidas técnicas e administrativas aptas a protêgê-los contra acessos não autorizados, perda ou tratamento indevido.</p>
-                <p><strong>1.3.</strong> Os dados poderão ser utilizados para: análise estatística; melhoria do Aplicativo; promoções e campanhas de marketing de produtos próprios, do grupo e/ou de parceiros; comunicação via e-mail, SMS, WhatsApp e/ou ligação telefônica; monitoramento de atividades de consumo e utilização dentro do aplicativo.</p>
+                <p><strong>1.1.</strong> O usuário reconhece que, ao preencher a ficha de cadastro, fornecerá dados
+                    pessoais &mdash; nome, endereço, e-mail, telefone, CPF, entre outros &mdash; que serão tratados pela
+                    TKS Vantagens em conformidade com a Lei Geral de Proteção de Dados Pessoais (Lei n.º 13.709/2018
+                    &ndash; LGPD).</p>
+                <p><strong>1.2.</strong> A TKS Vantagens compromete-se a tratar esses dados com segurança e
+                    confidencialidade, adotando medidas técnicas e administrativas aptas a protêgê-los contra acessos
+                    não autorizados, perda ou tratamento indevido.</p>
+                <p><strong>1.3.</strong> Os dados poderão ser utilizados para: análise estatística; melhoria do
+                    Aplicativo; promoções e campanhas de marketing de produtos próprios, do grupo e/ou de parceiros;
+                    comunicação via e-mail, SMS, WhatsApp e/ou ligação telefônica; monitoramento de atividades de
+                    consumo e utilização dentro do aplicativo.</p>
 
                 <h3 class="font-bold text-slate-800 text-base">2. Consentimento e Direitos do Titular</h3>
-                <p><strong>2.1.</strong> Ao se cadastrar, o usuário consente expressamente com a coleta e tratamento de seus dados conforme este Termo.</p>
-                <p><strong>2.2.</strong> O usuário pode solicitar &mdash; a qualquer momento &mdash; acesso, retificação, anonimização, portabilidade, eliminação ou bloqueio dos dados, bem como revogar o consentimento, enviando e-mail para <a href="mailto:contato@tksvantagens.com.br" class="text-tks-primary underline">contato@tksvantagens.com.br</a>.</p>
+                <p><strong>2.1.</strong> Ao se cadastrar, o usuário consente expressamente com a coleta e tratamento de
+                    seus dados conforme este Termo.</p>
+                <p><strong>2.2.</strong> O usuário pode solicitar &mdash; a qualquer momento &mdash; acesso,
+                    retificação, anonimização, portabilidade, eliminação ou bloqueio dos dados, bem como revogar o
+                    consentimento, enviando e-mail para <a href="mailto:contato@tksvantagens.com.br"
+                        class="text-tks-primary underline">contato@tksvantagens.com.br</a>.</p>
                 <p><strong>2.3.</strong> A revogação de consentimento poderá inviabilizar o uso do Aplicativo.</p>
 
                 <h3 class="font-bold text-slate-800 text-base">3. Planos, Pagamentos e Penalidades</h3>
-                <p><strong>3.1. Modalidades de Assinatura:</strong> A TKS Vantagens oferece planos mensais e semestrais (fidelidade mínima de seis meses). O usuário seleciona a modalidade desejada no momento da contratação.</p>
-                <p><strong>3.2. Cobrança nos Planos Semestrais:</strong> Nas adesões aos planos semestrais, não ocorre bloqueio do limite do cartão de crédito no valor total das seis mensalidades. É cobrado apenas o valor da mensalidade corrente a cada ciclo mensal.</p>
-                <p><strong>3.3. Inadimplência:</strong> O usuário declara estar ciente de que, em caso de descumprimento de pagamento em planos semestrais, poderá: ser cobrado judicialmente; ter seu nome negativado nos órgãos de proteção ao crédito; ter o débito protestado em cartório. Sobre a mensalidade em atraso incidirão juros e multa previstos em lei e/ou na fatura enviada.</p>
-                <p><strong>3.4. Cancelamento Antecipado (Planos Semestrais):</strong> A rescisão antes do término do período de fidelidade implica pagamento de multa de 50% sobre o valor das faturas restantes. O usuário autoriza a TKS Vantagens a debitar tal multa no cartão de crédito cadastrado. Caso o limite seja insuficiente, a multa poderá ser cobrada judicialmente, bem como resultar em negativação e protesto.</p>
+                <p><strong>3.1. Modalidades de Assinatura:</strong> A TKS Vantagens oferece planos mensais e semestrais
+                    (fidelidade mínima de seis meses). O usuário seleciona a modalidade desejada no momento da
+                    contratação.</p>
+                <p><strong>3.2. Cobrança nos Planos Semestrais:</strong> Nas adesões aos planos semestrais, não ocorre
+                    bloqueio do limite do cartão de crédito no valor total das seis mensalidades. É cobrado apenas o
+                    valor da mensalidade corrente a cada ciclo mensal.</p>
+                <p><strong>3.3. Inadimplência:</strong> O usuário declara estar ciente de que, em caso de descumprimento
+                    de pagamento em planos semestrais, poderá: ser cobrado judicialmente; ter seu nome negativado nos
+                    órgãos de proteção ao crédito; ter o débito protestado em cartório. Sobre a mensalidade em atraso
+                    incidirão juros e multa previstos em lei e/ou na fatura enviada.</p>
+                <p><strong>3.4. Cancelamento Antecipado (Planos Semestrais):</strong> A rescisão antes do término do
+                    período de fidelidade implica pagamento de multa de 50% sobre o valor das faturas restantes. O
+                    usuário autoriza a TKS Vantagens a debitar tal multa no cartão de crédito cadastrado. Caso o limite
+                    seja insuficiente, a multa poderá ser cobrada judicialmente, bem como resultar em negativação e
+                    protesto.</p>
 
                 <h3 class="font-bold text-slate-800 text-base">4. Disposições Finais</h3>
-                <p><strong>4.1.</strong> Este Termo constitui o acordo integral entre as partes, prevalecendo sobre quaisquer entendimentos anteriores.</p>
-                <p><strong>4.2.</strong> A TKS Vantagens pode alterar este Termo a qualquer momento, publicando nova versão no Aplicativo. O uso contínuo após a publicação implica aceitação das modificações.</p>
-                <p><strong>4.3.</strong> Este Termo é regido pelas leis brasileiras. Fica eleito o foro da Comarca de São Paulo/SP para dirimir eventuais controvérsias.</p>
+                <p><strong>4.1.</strong> Este Termo constitui o acordo integral entre as partes, prevalecendo sobre
+                    quaisquer entendimentos anteriores.</p>
+                <p><strong>4.2.</strong> A TKS Vantagens pode alterar este Termo a qualquer momento, publicando nova
+                    versão no Aplicativo. O uso contínuo após a publicação implica aceitação das modificações.</p>
+                <p><strong>4.3.</strong> Este Termo é regido pelas leis brasileiras. Fica eleito o foro da Comarca de
+                    São Paulo/SP para dirimir eventuais controvérsias.</p>
 
-                <p class="font-semibold text-slate-700 border-t border-slate-100 pt-4 mt-4">Ao prosseguir com a contratação, o usuário declara ter lido, compreendido e concordado com todos os termos acima.</p>
+                <p class="font-semibold text-slate-700 border-t border-slate-100 pt-4 mt-4">Ao prosseguir com a
+                    contratação, o usuário declara ter lido, compreendido e concordado com todos os termos acima.</p>
             </div>
 
             <!-- Rodapé do modal -->
             <div class="px-6 py-4 border-t border-slate-100 flex-shrink-0">
                 <button onclick="acceptTermsFromModal()"
-                        class="w-full py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark transition-colors">
+                    class="w-full py-3 rounded-xl font-bold text-white bg-tks-primary hover:bg-tks-dark transition-colors">
                     <i class="fas fa-check mr-2"></i> Li e aceito os Termos e Condições
                 </button>
             </div>
@@ -384,4 +447,5 @@
     </div>
 
 </body>
+
 </html>
